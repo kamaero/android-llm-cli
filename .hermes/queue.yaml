@@ -100,7 +100,7 @@ queue:
     branch: claude/T-15-slash-commands
   - id: T-16
     title: Crash recovery on startup
-    status: running
+    status: done
     assigned_agent: codex
     depends_on: []
     files_allowed:

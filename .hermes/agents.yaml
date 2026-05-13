@@ -1,9 +1,9 @@
 codex:
-  status: running
-  current_task: T-16
+  status: idle
+  current_task: null
   session_started_at: 2026-05-13T09:48:00Z
   max_runtime_hours: 5
-  notes: "Running T-16 (crash recovery)"
+  notes: "Completed T-13 (file tools), T-16 (crash recovery)"
 claude:
   status: idle
   current_task: null
