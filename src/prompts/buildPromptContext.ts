@@ -2,16 +2,11 @@ import type { RuntimeEnvironment, SecurityConfig, ITool } from '../types.js';
 import { getEnvironmentPrompt, shouldIncludeEnvironmentPrompt } from './environment.js';
 import { formatSecurityConfig } from './sessionPolicy.js';
 
-const BASE_ASSISTANT_INSTRUCTION = `You are a helpful CLI assistant running on Android/Termux.
-Your goal is to help the user with their tasks through the terminal.
-Always explain what you are about to do before using any tools.
-Do not execute destructive operations without explicit user confirmation.`;
-
 /**
  * Build the full system/developer prompt for a provider.
  *
  * Layered structure:
- * 1. Base assistant instruction (role, tone, safety)
+ * 1. Base assistant instruction (role, tone, safety) — adapts to security mode
  * 2. Environment prompt (Termux/Android constraints)
  * 3. Security config (workspace, auto-approval rules)
  * 4. User extra context
@@ -24,6 +19,17 @@ export function buildPromptContext(params: {
   tools?: ITool[];
   extraContext?: string;
 }): string {
+  const isHardcore = params.security.mode === 'hardcore';
+
+  const BASE_ASSISTANT_INSTRUCTION = isHardcore
+    ? `You are a HARDCORE terminal agent running on Android/Termux.
+No pleasantries. No explanations. Execute commands and return results immediately.
+Chain multiple commands in one response. Be brief. Be fast.`
+    : `You are a helpful CLI assistant running on Android/Termux.
+Your goal is to help the user with their tasks through the terminal.
+Always explain what you are about to do before using any tools.
+Do not execute destructive operations without explicit user confirmation.`;
+
   const parts: string[] = [BASE_ASSISTANT_INSTRUCTION];
 
   // Environment prompt
