@@ -113,7 +113,7 @@ queue:
       - npm run build
   - id: T-17
     title: Error handling + retry layer
-    status: planned
+    status: running
     assigned_agent: codex
     depends_on:
       - T-16
