@@ -4,11 +4,17 @@ import {
   appendFileSync,
   renameSync,
   existsSync,
-  unlinkSync
+  unlinkSync,
+  readdirSync
 } from 'fs';
 import { join } from 'path';
 import type { Session, StreamChunk } from '../types.js';
 import { getDataDir, ensureDir } from '../paths.js';
+
+export interface WalScanEntry {
+  id: string;
+  preview: string;
+}
 
 function sessionsDir(): string {
   const dir = join(getDataDir(), 'sessions');
@@ -22,6 +28,39 @@ function sessionPath(id: string): string {
 
 function walPath(id: string): string {
   return join(sessionsDir(), `${id}.wal`);
+}
+
+function extractPreviewFromSession(id: string): string | null {
+  const path = sessionPath(id);
+  if (!existsSync(path)) {
+    return null;
+  }
+
+  try {
+    const raw = readFileSync(path, 'utf-8');
+    const session = JSON.parse(raw) as Session;
+    const firstUserMessage = session.messages.find((message) => message.role === 'user')?.content.trim();
+    return firstUserMessage ? firstUserMessage.slice(0, 60) : null;
+  } catch {
+    return null;
+  }
+}
+
+function extractPreviewFromWal(id: string): string | null {
+  const chunks = recoverFromWal(id);
+
+  for (const chunk of chunks) {
+    if (chunk.type !== 'text') {
+      continue;
+    }
+
+    const preview = chunk.delta.trim();
+    if (preview) {
+      return preview.slice(0, 60);
+    }
+  }
+
+  return null;
 }
 
 /**
@@ -80,6 +119,23 @@ export function recoverFromWal(id: string): StreamChunk[] {
   }
 
   return chunks;
+}
+
+export function scanWalFiles(): WalScanEntry[] {
+  const dir = sessionsDir();
+  const files = readdirSync(dir)
+    .filter((file) => file.endsWith('.wal'))
+    .sort();
+
+  return files.map((file) => {
+    const id = file.slice(0, -4);
+    const preview =
+      extractPreviewFromSession(id) ??
+      extractPreviewFromWal(id) ??
+      `Recovered session ${id.slice(0, 8)}`;
+
+    return { id, preview };
+  });
 }
 
 /**
