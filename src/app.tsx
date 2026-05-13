@@ -27,6 +27,7 @@ import {
   type WalScanEntry,
 } from './storage/session.js';
 import { ToolRegistry } from './tools/registry.js';
+import { BashTool, ReadFileTool, WriteFileTool } from './tools/index.js';
 import { Layout } from './ui/Layout.js';
 import { RecoveryPrompt } from './ui/RecoveryPrompt.js';
 import { executeCommand, type CommandContext } from './commands/index.js';
@@ -417,7 +418,11 @@ export function App({ config, deps }: AppProps) {
   const stateRef = useRef(state);
   const providerRef = useRef<IProvider | null>(null);
   const pendingConfirmRef = useRef<Promise<void> | null>(null);
-  const toolRegistryRef = useRef(new ToolRegistry());
+  const toolRegistryRef = useRef(new ToolRegistry([
+    new BashTool(),
+    new ReadFileTool(),
+    new WriteFileTool(),
+  ]));
   const abortControllerRef = useRef(new AbortController());
   const iterationRef = useRef(0);
   const [recoveryMode, setRecoveryMode] = useState<WalScanEntry[]>([]);
@@ -470,6 +475,7 @@ export function App({ config, deps }: AppProps) {
       const systemPrompt = buildPromptContext({
         environment: mapEnvironment(config),
         security,
+        tools: toolRegistryRef.current.list(),
       });
 
       if (session.mode === 'agent') {
