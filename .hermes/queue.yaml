@@ -128,8 +128,8 @@ queue:
       - npm run build
   - id: T-18
     title: Code block syntax highlighting
-    status: planned
-    assigned_agent: codex
+    status: running
+    assigned_agent: claude
     depends_on: []
     files_allowed:
       - src/ui/CodeBlock.tsx
