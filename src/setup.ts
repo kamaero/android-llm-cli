@@ -10,83 +10,233 @@ const CONFIG_PATH = join(CONFIG_DIR, 'config.yaml');
 
 const rl = readline.createInterface({ input, output });
 
+// ── Hardcoded provider catalog ──
+
+interface ModelEntry {
+  id: string;
+  label: string;
+  defaultModel?: boolean;
+}
+
+interface ProviderEntry {
+  id: string;
+  label: string;
+  type: 'anthropic' | 'openai';
+  baseUrl?: string;
+  models: ModelEntry[];
+}
+
+const PROVIDERS: ProviderEntry[] = [
+  {
+    id: 'anthropic',
+    label: 'Anthropic (Claude)',
+    type: 'anthropic',
+    models: [
+      { id: 'claude-sonnet-4-20250514', label: 'Claude Sonnet 4', defaultModel: true },
+      { id: 'claude-opus-4-20250514', label: 'Claude Opus 4' },
+      { id: 'claude-3-5-haiku-latest', label: 'Claude Haiku 3.5' },
+    ],
+  },
+  {
+    id: 'openai',
+    label: 'OpenAI (GPT)',
+    type: 'openai',
+    models: [
+      { id: 'gpt-4o', label: 'GPT-4o', defaultModel: true },
+      { id: 'gpt-4o-mini', label: 'GPT-4o Mini' },
+      { id: 'gpt-4.1', label: 'GPT-4.1' },
+      { id: 'o3', label: 'o3' },
+      { id: 'o4-mini', label: 'o4-mini' },
+    ],
+  },
+  {
+    id: 'deepseek',
+    label: 'DeepSeek',
+    type: 'openai',
+    baseUrl: 'https://api.deepseek.com',
+    models: [
+      { id: 'deepseek-v4-flash', label: 'DeepSeek V4 Flash', defaultModel: true },
+      { id: 'deepseek-v4-pro', label: 'DeepSeek V4 Pro' },
+      { id: 'deepseek-chat', label: 'DeepSeek V3 (deepseek-chat)' },
+    ],
+  },
+  {
+    id: 'kimi',
+    label: 'Kimi (Moonshot)',
+    type: 'openai',
+    baseUrl: 'https://api.moonshot.cn/v1',
+    models: [
+      { id: 'kimi-latest', label: 'kimi-latest', defaultModel: true },
+      { id: 'moonshot-v1-8k', label: 'moonshot-v1-8k' },
+      { id: 'moonshot-v1-32k', label: 'moonshot-v1-32k' },
+    ],
+  },
+  {
+    id: 'xai',
+    label: 'xAI (Grok)',
+    type: 'openai',
+    baseUrl: 'https://api.x.ai',
+    models: [
+      { id: 'grok-3', label: 'Grok 3', defaultModel: true },
+      { id: 'grok-3-mini', label: 'Grok 3 Mini' },
+    ],
+  },
+];
+
 async function ask(question: string, defaultVal?: string): Promise<string> {
   const hint = defaultVal ? ` [${defaultVal}]` : '';
-  const answer = await rl.question(`${question}${hint}: `);
+  const answer = await rl.question(`  ${question}${hint}: `);
   return answer.trim() || defaultVal || '';
 }
 
-/**
- * Interactive setup wizard.
- * Creates config.yaml with provider(s) and security profile.
- */
+async function select(label: string, choices: { key: string; label: string }[]): Promise<string> {
+  console.log(`\n  ${label}:`);
+  for (const c of choices) {
+    console.log(`    ${c.key}) ${c.label}`);
+  }
+  const answer = await rl.question(`  > `);
+  const match = choices.find((c) => c.key === answer.trim());
+  if (match) return match.key;
+  // fallback to first
+  return choices[0]?.key || '';
+}
+
+async function testProvider(
+  type: 'anthropic' | 'openai',
+  baseUrl: string | undefined,
+  model: string,
+  apiKey: string,
+): Promise<boolean> {
+  try {
+    if (type === 'anthropic') {
+      const url = 'https://api.anthropic.com/v1/messages';
+      const body = JSON.stringify({
+        model,
+        max_tokens: 10,
+        messages: [{ role: 'user', content: 'respond with just: ok' }],
+      });
+      const resp = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': apiKey,
+          'anthropic-version': '2023-06-01',
+        },
+        body,
+        signal: AbortSignal.timeout(10000),
+      });
+      if (!resp.ok) {
+        const text = await resp.text().catch(() => '');
+        console.log(`  ${'✗'} Ошибка ${resp.status}: ${text.slice(0, 200)}`);
+        return false;
+      }
+      const data = (await resp.json()) as { content?: { text?: string }[] };
+      console.log(`  ${'✓'} Готово! Ответ: ${data.content?.[0]?.text || 'ok'}`);
+      return true;
+    } else {
+      const url = baseUrl ? `${baseUrl}/chat/completions` : 'https://api.openai.com/v1/chat/completions';
+      const body = JSON.stringify({
+        model,
+        max_tokens: 10,
+        messages: [{ role: 'user', content: 'respond with just: ok' }],
+      });
+      const resp = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body,
+        signal: AbortSignal.timeout(10000),
+      });
+      if (!resp.ok) {
+        const text = await resp.text().catch(() => '');
+        console.log(`  ${'✗'} Ошибка ${resp.status}: ${text.slice(0, 200)}`);
+        return false;
+      }
+      const data = (await resp.json()) as { choices?: { message?: { content?: string } }[] };
+      const reply = data.choices?.[0]?.message?.content || 'ok';
+      console.log(`  ${'✓'} Готово! Ответ: ${reply}`);
+      return true;
+    }
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.log(`  ${'✗'} Ошибка подключения: ${msg.slice(0, 150)}`);
+    return false;
+  }
+}
+
 export async function setupWizard(): Promise<void> {
   console.log('');
-  console.log('╔══════════════════════════════════════════╗');
-  console.log('║   android-llm-cli — Setup Wizard         ║');
-  console.log('╚══════════════════════════════════════════╝');
+  console.log('  ╔══════════════════════════════════════════╗');
+  console.log('  ║   android-llm-cli — Setup Wizard         ║');
+  console.log('  ╚══════════════════════════════════════════╝');
+
+  // ── 1. Select provider ──
+  const provKey = await select('Выберите провайдера', [
+    { key: '1', label: `${PROVIDERS[0].label} — Sonnet, Opus, Haiku` },
+    { key: '2', label: `${PROVIDERS[1].label} — GPT-4o, GPT-4.1, o3` },
+    { key: '3', label: `${PROVIDERS[2].label} — V4 Flash, V4 Pro, V3` },
+    { key: '4', label: `${PROVIDERS[3].label} — kimi-latest` },
+    { key: '5', label: `${PROVIDERS[4].label} — Grok 3` },
+  ]);
+
+  const provider = PROVIDERS[parseInt(provKey) - 1] || PROVIDERS[0];
+
+  // ── 2. Select model ──
+  const modelKey = await select('Выберите модель', provider.models.map((m, i) => ({
+    key: String(i + 1),
+    label: `${m.label}${m.defaultModel ? ' (по умолчанию)' : ''}`,
+  })));
+
+  const model = provider.models[parseInt(modelKey) - 1] || provider.models.find((m) => m.defaultModel) || provider.models[0];
+
+  // ── 3. API key ──
+  const envVarName =
+    provider.type === 'anthropic' ? 'ANTHROPIC_API_KEY' : 'OPENAI_API_KEY';
+
   console.log('');
+  const keyRaw = await rl.question(
+    `  API Key (Enter = использовать \${${envVarName}} из окружения):\n  > `,
+  );
+  const useEnv = keyRaw.trim() === '';
+  const apiKey = useEnv ? `\${${envVarName}}` : keyRaw.trim();
 
-  // ── Provider ──
-  console.log('Выберите LLM-провайдера:');
-  console.log('  1) Anthropic (Claude) — рекомендуется');
-  console.log('  2) OpenAI / DeepSeek / OpenRouter');
-  const provChoice = await ask('Ваш выбор', '1');
-
-  let providerType: string;
-  let providerKey: string;
-  let envVar: string;
-  let model: string;
-  let baseUrl: string | undefined;
-
-  if (provChoice === '2') {
-    providerType = 'openai';
-    providerKey = await ask('  OpenAI / DeepSeek / OpenRouter API Key (или оставьте пустым для ${OPENAI_API_KEY})');
-    envVar = providerKey ? '' : '${OPENAI_API_KEY}';
-    console.log('');
-    console.log('  Популярные модели:');
-    console.log('    • deepseek-v4-flash  — DeepSeek V4 Flash');
-    console.log('    • deepseek-v4-pro    — DeepSeek V4 Pro');
-    console.log('    • gpt-4o            — OpenAI GPT-4o');
-    console.log('    • gpt-4o-mini       — OpenAI GPT-4o Mini');
-    console.log('    • deepseek-chat     — DeepSeek V3');
-    model = await ask('  Model', 'deepseek-v4-flash');
-    const baseUrlRaw = await ask('  Base URL (Enter для OpenAI, или укажите свой)', '');
-    baseUrl = baseUrlRaw || undefined;
+  // ── 4. Test connection ──
+  console.log('');
+  if (!useEnv && apiKey) {
+    console.log('  Тестирую подключение...');
+    const ok = await testProvider(provider.type, provider.baseUrl, model.id, apiKey);
+    if (!ok) {
+      const retry = await rl.question('  Продолжить сохранение всё равно? (y/N) ');
+      if (retry.toLowerCase() !== 'y') {
+        console.log('  Отменено. Запустите a-llmcli setup заново.');
+        return;
+      }
+    }
   } else {
-    providerType = 'anthropic';
-    providerKey = await ask('  Anthropic API Key (или оставьте пустым для ${ANTHROPIC_API_KEY})');
-    envVar = providerKey ? '' : '${ANTHROPIC_API_KEY}';
-    console.log('');
-    console.log('  Популярные модели:');
-    console.log('    • claude-sonnet-4-20250514  — Claude Sonnet 4');
-    console.log('    • claude-3-5-haiku-latest   — Claude 3.5 Haiku');
-    model = await ask('  Model', 'claude-sonnet-4-20250514');
+    console.log('  ${' + envVarName + '} — тест пропущен (ключ в переменной окружения)');
   }
 
-  // ── Security profile ──
-  console.log('');
-  console.log('Профиль безопасности:');
-  console.log('  1) safe-chat (чат без agent mode — рекомендуется)');
-  console.log('  2) code-workspace (агент в пределах ~/workspace)');
-  console.log('  3) full-termux-agent (полный доступ — осторожно!)');
-  const profileChoice = await ask('Ваш выбор', '1');
-
+  // ── 5. Security profile ──
+  const profileKey = await select('Профиль безопасности', [
+    { key: '1', label: 'safe-chat — чат без agent mode (рекомендуется)' },
+    { key: '2', label: 'code-workspace — агент только в ~/workspace' },
+    { key: '3', label: 'full-termux-agent — полный доступ (осторожно!)' },
+  ]);
   const profileMap: Record<string, string> = {
     '1': 'safe-chat',
     '2': 'code-workspace',
     '3': 'full-termux-agent',
   };
-  const profile = profileMap[profileChoice] || 'safe-chat';
+  const profile = profileMap[profileKey] || 'safe-chat';
+  const workspace = profile === 'full-termux-agent'
+    ? homedir()
+    : profile === 'code-workspace'
+      ? join(homedir(), 'workspace')
+      : '/tmp';
 
-  const workspace =
-    profile === 'safe-chat'
-      ? '/tmp'
-      : await ask('  Путь к workspace', join(homedir(), 'workspace'));
-
-  // ── Build config ──
-  const apiKey = providerKey || envVar;
-
+  // ── 6. Build config ──
   const config: Record<string, unknown> = {
     default_provider: 'main',
     default_mode: profile === 'safe-chat' ? 'chat' : 'agent',
@@ -105,10 +255,10 @@ export async function setupWizard(): Promise<void> {
     },
     providers: {
       main: {
-        type: providerType,
+        type: provider.type,
         api_key: apiKey,
-        model,
-        ...(baseUrl ? { base_url: baseUrl } : {}),
+        model: model.id,
+        ...(provider.baseUrl ? { base_url: provider.baseUrl } : {}),
       },
     },
   };
@@ -126,27 +276,24 @@ export async function setupWizard(): Promise<void> {
     const { chmodSync } = await import('fs');
     chmodSync(CONFIG_PATH, 0o600);
   } catch {
-    // Not critical on all platforms
+    // not critical
   }
 
   console.log('');
-  console.log(`Конфиг сохранён: ${CONFIG_PATH}`);
+  console.log(`  ${'✓'} Конфиг сохранён: ${CONFIG_PATH}`);
   console.log('');
 
-  if (!providerKey) {
-    console.log('⚠ Не забудьте установить переменную окружения:');
-    if (providerType === 'anthropic') {
-      console.log('  export ANTHROPIC_API_KEY="sk-ant-..." >> ~/.bashrc');
-    } else {
-      console.log('  export OPENAI_API_KEY="sk-..." >> ~/.bashrc');
-    }
-    console.log('  source ~/.bashrc');
+  if (useEnv) {
+    console.log(`  ${'⚠'} Не забудьте установить переменную окружения:`);
+    console.log(`    export ${envVarName}="..." >> ~/.bashrc`);
+    console.log(`    source ~/.bashrc`);
   }
 
   console.log('');
-  console.log('Готово! Запустите: a-llmcli');
+  console.log(`  Готово! Запустите: a-llmcli`);
 }
 
+// ── YAML builder ──
 function buildYaml(obj: Record<string, unknown>, indent = 0): string {
   const pad = '  '.repeat(indent);
   const lines: string[] = [];
@@ -169,7 +316,7 @@ function buildYaml(obj: Record<string, unknown>, indent = 0): string {
   return lines.join('\n');
 }
 
-// ── Run if called directly ──
+// ── Entry guard ──
 const isMain = process.argv[1]?.includes('setup');
 if (isMain) {
   setupWizard()
