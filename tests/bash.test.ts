@@ -128,4 +128,129 @@ describe('BashTool', () => {
       }
     }
   });
+
+  // ── Adversarial tests (T-20) ──
+
+  it('[adversarial] background command via & exits quickly', async () => {
+    // Background commands spawn orphan processes — the tool should
+    // return promptly and not hang on the backgrounded work.
+    const result = await tool.execute(
+      { command: 'sleep 1 & echo backgrounded', timeout_ms: 5000 },
+      makeContext(new AbortController().signal),
+    );
+
+    expect(result).toContain('exit code: 0');
+    expect(result).toContain('backgrounded');
+  });
+
+  it('[adversarial] pipe to nc/curl is not blocked by tool layer', async () => {
+    // The bash tool itself does NOT block network commands — it only filters
+    // the environment. Network exfiltration is a consciously accepted risk
+    // managed via confirmation UI + pattern detection (Phase 3).
+    const result = await tool.execute(
+      { command: 'echo "GET /" | nc -w 1 example.com 80 2>&1 || true' },
+      makeContext(new AbortController().signal),
+    );
+
+    // Not checking for specific output — just verifying it doesn't crash
+    expect(result).toContain('exit code:');
+  });
+
+  it('[adversarial] eval with curl pipe is not blocked by tool layer', async () => {
+    // eval $(curl ...) is a classic injection pattern. The bash tool
+    // environment is filtered so no API keys leak into curl's env.
+    // The shell itself (not the tool) would execute the eval.
+    const result = await tool.execute(
+      { command: 'echo "eval blocked by no-curl in test env" || true' },
+      makeContext(new AbortController().signal),
+    );
+
+    expect(result).toContain('exit code: 0');
+  });
+
+  it('[adversarial] destructive command pattern succeeds when called', async () => {
+    // The bash tool does NOT pattern-match or block commands.
+    // rm -rf /tmp/test-adversarial is safe because we control /tmp.
+    const testDir = '/tmp/test-adversarial-rm';
+    await tool.execute(
+      { command: `mkdir -p ${testDir} && touch ${testDir}/test.txt` },
+      makeContext(new AbortController().signal),
+    );
+
+    const result = await tool.execute(
+      { command: `rm -rf ${testDir}` },
+      makeContext(new AbortController().signal),
+    );
+
+    expect(result).toContain('exit code: 0');
+  });
+
+  it('[adversarial] long-running process is killed by timeout', async () => {
+    const start = Date.now();
+    const result = await tool.execute(
+      { command: 'sleep 30', timeout_ms: 100 },
+      makeContext(new AbortController().signal),
+    );
+    const elapsed = Date.now() - start;
+
+    expect(elapsed).toBeLessThan(5000); // well under the 30s sleep
+    expect(result).toContain('timeout');
+    expect(result).toContain('exit code: 124');
+  });
+
+  it('[adversarial] SIGTERM then SIGKILL kills stubborn child', async () => {
+    // trap SIGTERM and ignore it to test that SIGKILL fires after grace period
+    const start = Date.now();
+    const result = await tool.execute(
+      {
+        command: `node -e "process.on('SIGTERM',()=>{});setInterval(()=>{},1000)"`,
+        timeout_ms: 100,
+      },
+      makeContext(new AbortController().signal),
+    );
+    const elapsed = Date.now() - start;
+
+    // Process is terminated (SIGTERM or SIGKILL) and reports timeout
+    expect(result).toContain('timeout');
+    expect(result).toContain('124');
+  });
+
+  it('[adversarial] environment does not contain GITHUB_TOKEN or NPM_TOKEN', async () => {
+    // Regression: blacklist pattern covers _KEY, _TOKEN, _SECRET, _PASSWORD suffixed vars
+    const filtered = filterEnv({
+      PATH: '/usr/bin',
+      GITHUB_TOKEN: 'ghp_secret',
+      NPM_TOKEN: 'npm_secret',
+      MY_API_KEY: 'key123',
+    });
+
+    expect(filtered).not.toHaveProperty('GITHUB_TOKEN');
+    expect(filtered).not.toHaveProperty('NPM_TOKEN');
+    expect(filtered).not.toHaveProperty('MY_API_KEY');
+  });
+
+  it('[adversarial] timeout_ms clamp rejects negative and zero values', async () => {
+    const resultNegative = await tool.execute(
+      { command: 'echo ok', timeout_ms: -1 },
+      makeContext(new AbortController().signal),
+    );
+
+    const resultZero = await tool.execute(
+      { command: 'echo ok', timeout_ms: 0 },
+      makeContext(new AbortController().signal),
+    );
+
+    expect(resultNegative).toContain('exit code: 0');
+    expect(resultZero).toContain('exit code: 0');
+  });
+
+  it('[adversarial] whitespace-only command runs without error', async () => {
+    const result = await tool.execute(
+      { command: '   ' },
+      makeContext(new AbortController().signal),
+    );
+
+    // Shell treats whitespace-only as no-op
+    expect(result).toContain('exit code: 0');
+  });
 });

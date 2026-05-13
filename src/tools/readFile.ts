@@ -5,6 +5,26 @@ import { Buffer } from 'node:buffer';
 import { TOOL_RESULT_MAX_BYTES } from '../constants.js';
 import type { ITool, ToolContext } from '../types.js';
 
+/** Regex patterns matching paths that contain sensitive segments. */
+const SENSITIVE_SEGMENTS: RegExp[] = [
+  /[/\\](\.ssh|\.aws|\.gnupg|\.config[/\\]a-llmcli|\.config[/\\]llmcli|\.llmcli)[/\\]/,
+  /[/\\]\.gitconfig$/,
+  /[/\\]\.netrc$/,
+  /[/\\]\.env(\.\w+)?$/,
+  /[/\\]id_(rsa|ecdsa|ed25519|dsa)(\.pub)?$/,
+  /[/\\]config\.(yaml|yml)$/,
+  /\.pem$/,
+  /\.key$/,
+];
+
+/**
+ * Check if the resolved path matches known sensitive patterns.
+ * Returns true for paths like ~/.ssh/id_rsa, .env, config.yaml, etc.
+ */
+export function isSensitivePath(resolvedPath: string): boolean {
+  return SENSITIVE_SEGMENTS.some((pattern) => pattern.test(resolvedPath));
+}
+
 const DEFAULT_OFFSET = 1;
 const DEFAULT_LIMIT = 500;
 const MAX_LIMIT = 2000;
@@ -142,6 +162,14 @@ export class ReadFileTool implements ITool {
       }
 
       const resolvedPath = resolveReadPath(inputPath, ctx.workspaceRoot);
+
+      // Sensitive path check — warn in result so the model can see it flagged
+      if (isSensitivePath(resolvedPath)) {
+        return formatError(
+          `Access to sensitive path is flagged:\n  ${resolvedPath}\nThis file may contain credentials or secrets.`
+        );
+      }
+
       const offset = clampPositiveInteger(input.offset, DEFAULT_OFFSET);
       const limit = clampPositiveInteger(input.limit, DEFAULT_LIMIT, MAX_LIMIT);
       const content = await readFile(resolvedPath);

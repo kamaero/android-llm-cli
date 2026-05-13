@@ -154,3 +154,17 @@ queue:
       - a-llmcli --mock --mode agent triggers tool confirm
       - npm test
       - npm run build
+  - id: T-20
+    title: "Bash safety hardening review"
+    status: done
+    assigned_agent: hermes
+    depends_on: []
+    files_allowed:
+      - docs/bash-tool-security.md
+      - tests/bash.test.ts
+      - src/tools/readFile.ts
+    acceptance:
+      - adversarial tests document bash gaps
+      - docs list known gaps + accepted risks
+      - npm test
+      - npm run build
