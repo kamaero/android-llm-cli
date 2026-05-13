@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.95.2",
+    "highlight.js": "^11.11.1",
     "ink": "^4.4.1",
     "js-yaml": "^4.1.1",
     "meow": "^13.2.0",

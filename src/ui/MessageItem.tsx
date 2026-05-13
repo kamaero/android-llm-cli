@@ -1,6 +1,7 @@
 import React from 'react';
 import { Box, Text } from 'ink';
 import type { Message } from '../types.js';
+import { CodeBlock } from './CodeBlock.js';
 
 // ── Inline markdown ──────────────────────────────────────────────────────────
 
@@ -79,18 +80,7 @@ function MarkdownContent({ content }: { content: string }) {
         i++;
       }
       blocks.push(
-        <Box
-          key={`cb-${i}`}
-          borderStyle="single"
-          borderColor="gray"
-          flexDirection="column"
-          paddingX={1}
-        >
-          {lang ? <Text dimColor>{lang}</Text> : null}
-          {codeLines.map((cl, j) => (
-            <Text key={j} color="cyan">{cl}</Text>
-          ))}
-        </Box>,
+        <CodeBlock key={`cb-${i}`} code={codeLines.join('\n')} lang={lang || undefined} />,
       );
     } else if (/^#{1,3} /.test(line)) {
       const level = (line.match(/^(#+) /)?.[1].length) ?? 1;
