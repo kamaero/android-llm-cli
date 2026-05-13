@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { memo, useState } from 'react';
 import { Box, Text, useInput, useApp } from 'ink';
 import { nanoid } from 'nanoid';
 import type { AppAction } from '../types.js';
@@ -10,7 +10,7 @@ interface InputBoxProps {
   placeholder?: string;
 }
 
-export function InputBox({
+export const InputBox = memo(function InputBox({
   dispatch,
   onCommand,
   isActive = true,
@@ -81,6 +81,7 @@ export function InputBox({
   const cursorChar = text[cursor] ?? ' ';
   const after = text.slice(cursor + 1);
   const isEmpty = text.length === 0;
+  const cursorAtEnd = cursor === text.length;
 
   return (
     <Box borderStyle="single" paddingX={1}>
@@ -89,6 +90,10 @@ export function InputBox({
       </Text>
       {isEmpty ? (
         <Text dimColor>{placeholder}</Text>
+      ) : cursorAtEnd ? (
+        /* Cursor at end — plain text only. Native terminal cursor handles position,
+           no inverse char to clash with the block cursor on Termux. */
+        <Text>{text}</Text>
       ) : (
         <>
           <Text>{before}</Text>
@@ -98,4 +103,4 @@ export function InputBox({
       )}
     </Box>
   );
-}
+});
