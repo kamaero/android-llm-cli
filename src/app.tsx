@@ -12,6 +12,7 @@ import type {
   ToolCall,
   ToolResult,
 } from './types.js';
+import { agentLoop, executeToolCall } from './agent/agentLoop.js';
 import type { ConfigType } from './schemas.js';
 import { createProvider } from './providers/registry.js';
 import { buildPromptContext } from './prompts/buildPromptContext.js';
@@ -306,6 +307,8 @@ export function App({ config, deps }: AppProps) {
   const providerRef = useRef<IProvider | null>(null);
   const pendingConfirmRef = useRef<Promise<void> | null>(null);
   const toolRegistryRef = useRef(new ToolRegistry());
+  const abortControllerRef = useRef(new AbortController());
+  const iterationRef = useRef(0);
 
   useEffect(() => {
     stateRef.current = state;
@@ -341,16 +344,33 @@ export function App({ config, deps }: AppProps) {
   }, [config, runtimeDeps]);
 
   const fetchResponse = useCallback(
-    async (session: Session): Promise<void> => {
+    async (session: Session, iteration = 0): Promise<void> => {
       const provider = getProvider();
+      const sessionPolicy = mapSessionPolicy(config);
       const systemPrompt = buildPromptContext({
         environment: mapEnvironment(config),
-        sessionPolicy: mapSessionPolicy(config),
+        sessionPolicy,
       });
+
+      if (session.mode === 'agent') {
+        abortControllerRef.current = new AbortController();
+        await agentLoop({
+          session,
+          provider,
+          toolRegistry: toolRegistryRef.current,
+          systemPrompt,
+          dispatch,
+          sessionPolicy,
+          saveSession: runtimeDeps.saveSession,
+          signal: abortControllerRef.current.signal,
+          iteration,
+        });
+        return;
+      }
+
+      // Chat mode: plain streaming, no tool execution
       const tools =
-        mode === 'agent' && provider.capabilities.tools
-          ? toolRegistryRef.current.enabledFor(provider)
-          : undefined;
+        provider.capabilities.tools ? toolRegistryRef.current.enabledFor(provider) : undefined;
 
       dispatch({ type: 'START_STREAMING' });
 
@@ -369,13 +389,14 @@ export function App({ config, deps }: AppProps) {
         dispatch({ type: 'SET_ERROR', error: message });
       }
     },
-    [config, dispatch, getProvider, mode, runtimeDeps],
+    [config, dispatch, getProvider, runtimeDeps],
   );
 
   const handleAddUserMessage = useCallback(
     async (message: Message): Promise<void> => {
+      iterationRef.current = 0;
       const nextState = dispatch({ type: 'ADD_USER_MESSAGE', message });
-      await fetchResponse(nextState.session);
+      await fetchResponse(nextState.session, 0);
     },
     [dispatch, fetchResponse],
   );
@@ -387,28 +408,40 @@ export function App({ config, deps }: AppProps) {
         return;
       }
 
-      const toolResult: ToolResult = {
-        tool_call_id: toolCallId,
-        output: confirm
-          ? `Tool "${pendingToolCall.call.name}" approved by user.`
-          : `Tool "${pendingToolCall.call.name}" rejected by user.`,
-        is_error: !confirm,
-      };
+      const { call } = pendingToolCall;
+      let toolResult: ToolResult;
+
+      if (confirm && stateRef.current.session.mode === 'agent') {
+        toolResult = await executeToolCall(
+          call,
+          toolRegistryRef.current,
+          mapSessionPolicy(config),
+          abortControllerRef.current.signal,
+        );
+      } else {
+        toolResult = {
+          tool_call_id: toolCallId,
+          output: confirm
+            ? `Tool "${call.name}" approved by user.`
+            : `Tool "${call.name}" rejected by user.`,
+          is_error: !confirm,
+        };
+      }
 
       const stateWithResult = dispatch({ type: 'SET_TOOL_RESULT', toolResult });
-      const finalState = dispatch({
-        type: confirm ? 'CONFIRM_TOOL' : 'REJECT_TOOL',
-        toolCallId,
-      });
+      dispatch({ type: confirm ? 'CONFIRM_TOOL' : 'REJECT_TOOL', toolCallId });
 
-      if (confirm) {
-        await fetchResponse(stateWithResult.session);
+      // Feed the result back into the agent loop (continue regardless of confirm/reject).
+      if (stateRef.current.session.mode === 'agent') {
+        iterationRef.current++;
+        await fetchResponse(stateWithResult.session, iterationRef.current);
         return;
       }
 
+      const finalState = dispatch({ type: 'STOP_STREAMING' });
       runtimeDeps.saveSession(finalState.session);
     },
-    [dispatch, fetchResponse, runtimeDeps],
+    [config, dispatch, fetchResponse, runtimeDeps],
   );
 
   const boundDispatch = useCallback(
