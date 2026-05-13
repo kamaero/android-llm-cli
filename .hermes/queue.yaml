@@ -1,21 +1,103 @@
 queue:
   - id: T-01
     title: Scaffolding & toolchain
-    status: pending
+    status: done
     assigned_agent: codex
     branch: codex/T-01-scaffolding
+  - id: T-02
+    title: Types, schemas, constants
+    status: done
+    assigned_agent: codex
+    branch: codex/T-01-scaffolding
+  - id: T-03
+    title: Paths, config loader, prompt context
+    status: done
+    assigned_agent: codex
+    branch: codex/T-01-scaffolding
+  - id: T-04
+    title: Session storage, WAL, journal
+    status: done
+    assigned_agent: codex
+    branch: codex/T-01-scaffolding
+  - id: T-05
+    title: IProvider + Anthropic adapter
+    status: done
+    assigned_agent: codex
+    branch: codex/T-01-scaffolding
+  - id: T-06
+    title: OpenAI-compatible provider
+    status: done
+    assigned_agent: codex
+    branch: codex/T-01-scaffolding
+  - id: T-07
+    title: Ink Layout + InputBox + StatusBar
+    status: done
+    assigned_agent: codex
+    branch: codex/T-01-scaffolding
+  - id: T-08
+    title: MessageList + MessageItem + markdown
+    status: done
+    assigned_agent: codex
+    branch: codex/T-01-scaffolding
+  - id: T-09
+    title: Streaming wired to UI + auto-save
+    status: done
+    assigned_agent: codex
+    branch: codex/T-01-scaffolding
+  - id: T-10
+    title: ITool + registry + capabilities check
+    status: done
+    assigned_agent: codex
+    branch: codex/T-10-tool-registry
+  - id: T-11
+    title: Tool confirmation UI + ToolConfirmBox
+    status: done
+    assigned_agent: claude
+    branch: claude/T-15-slash-commands  # implemented within the T-15 PR
+  - id: T-12
+    title: Bash tool — Termux-aware
+    status: done
+    assigned_agent: codex
+    branch: codex/T-12-bash-tool
+  - id: T-13
+    title: read_file + write_file tools
+    status: running
+    assigned_agent: codex
+    branch: codex/T-13-file-tools
+    worktree: /root/projects/worktrees/codex-T-13-file-tools
     depends_on: []
     doc_refs:
       - /root/vault/Hermes_memory/termux_aicli/03-implementation-plan.md
-      - /root/vault/Hermes_memory/termux_aicli/q6-commands.md
     files_allowed:
-      - package.json
-      - tsconfig.json
-      - tsconfig.build.json
-      - vitest.config.ts
-      - src/index.ts
+      - src/tools/readFile.ts
+      - src/tools/writeFile.ts
+      - src/tools/index.ts
+      - tests/readFile.test.ts
+      - tests/writeFile.test.ts
     acceptance:
-      - npm run dev -- --help
-      - npm run build
-      - node dist/index.js --version
       - npm test
+      - npm run build
+  - id: T-14
+    title: Agent loop
+    status: running
+    assigned_agent: claude
+    branch: claude/T-14-agent-loop
+    worktree: /root/projects/worktrees/claude-T-14-agent-loop
+    depends_on:
+      - T-11
+      - T-12
+      - T-13
+    doc_refs:
+      - /root/vault/Hermes_memory/termux_aicli/03-implementation-plan.md
+    files_allowed:
+      - src/agent/agentLoop.ts
+      - src/app.tsx
+      - tests/agentLoop.test.ts
+    acceptance:
+      - npm test
+      - npm run build
+  - id: T-15
+    title: Slash commands
+    status: done
+    assigned_agent: claude
+    branch: claude/T-15-slash-commands

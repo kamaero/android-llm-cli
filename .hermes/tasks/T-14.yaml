@@ -1,0 +1,22 @@
+id: T-14
+title: Agent loop
+status: running
+assigned_agent: claude
+branch: claude/T-14-agent-loop
+worktree: /root/projects/worktrees/claude-T-14-agent-loop
+doc_refs:
+  - /root/vault/Hermes_memory/termux_aicli/03-implementation-plan.md
+files_allowed:
+  - src/agent/agentLoop.ts
+  - src/app.tsx
+  - tests/agentLoop.test.ts
+acceptance:
+  - npm test
+  - npm run build
+notes: |
+  Create src/agent/agentLoop.ts — the core orchestration:
+  1. Stream from provider with tools
+  2. When tool_call received: look up in ToolRegistry, execute tool
+  3. Send result back to provider, loop up to AGENT_LOOP_MAX_ITERATIONS_MVP
+  4. Respect sessionPolicy for confirmation mode
+  5. Update src/app.tsx to use agentLoop when mode === 'agent'

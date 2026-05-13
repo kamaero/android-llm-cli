@@ -1,0 +1,29 @@
+id: T-01
+title: Scaffolding & toolchain
+status: done
+assigned_agent: codex
+branch: codex/T-01-scaffolding
+source_docs:
+  - /root/vault/Hermes_memory/termux_aicli/03-implementation-plan.md
+  - /root/vault/Hermes_memory/termux_aicli/q6-commands.md
+files_allowed:
+  - package.json
+  - tsconfig.json
+  - tsconfig.build.json
+  - vitest.config.ts
+  - src/index.ts
+  - .gitignore
+acceptance:
+  - npm run dev -- --help
+  - npm run build
+  - node dist/index.js --version
+  - npm test
+locks:
+  - package.json
+  - src/index.ts
+notes: |
+  Project name: android-llm-cli
+  Binary name: a-llmcli
+  TypeScript, ESM, strict mode
+  Use meow for CLI arg parsing
+  Ink + React for TUI

@@ -1,0 +1,23 @@
+id: T-10
+title: ITool + registry + capabilities check
+status: done
+assigned_agent: codex
+branch: codex/T-10-tool-registry
+worktree: /root/projects/worktrees/codex-T-10-tool-registry
+doc_refs:
+  - /root/vault/Hermes_memory/termux_aicli/03-implementation-plan.md
+files_allowed:
+  - src/tools/ITool.ts
+  - src/tools/registry.ts
+  - src/types.ts
+  - src/app.tsx
+  - tests/registry.test.ts
+acceptance:
+  - npm test
+  - npm run build
+locks:
+  - src/tools/
+  - src/types.ts
+notes: |
+  See 03-implementation-plan.md §T-10. Create ITool interface, ToolRegistry class.
+  Add `mode: chat | agent` to AppState. Wire tools into runStream when mode=agent.

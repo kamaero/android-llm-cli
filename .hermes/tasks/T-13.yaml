@@ -1,0 +1,23 @@
+id: T-13
+title: read_file + write_file tools
+status: running
+assigned_agent: codex
+branch: codex/T-13-file-tools
+worktree: /root/projects/worktrees/codex-T-13-file-tools
+doc_refs:
+  - /root/vault/Hermes_memory/termux_aicli/03-implementation-plan.md
+files_allowed:
+  - src/tools/readFile.ts
+  - src/tools/writeFile.ts
+  - src/tools/index.ts
+  - tests/readFile.test.ts
+  - tests/writeFile.test.ts
+acceptance:
+  - npm test
+  - npm run build
+notes: |
+  Implement ReadFileTool and WriteFileTool as ITool implementations.
+  Pattern: src/tools/bash.ts (BashTool).
+  Path safety: reject ".." traversal, reject absolute paths outside workspaceRoot.
+  readFile: offset/limit pagination, line-number output format.
+  writeFile: overwrites, creates parent dirs, ARTIFACT_MAX_BYTES limit.
