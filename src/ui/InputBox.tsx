@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Box, Text, useInput, useApp } from 'ink';
+import { nanoid } from 'nanoid';
 import type { AppAction } from '../types.js';
 
 interface InputBoxProps {
@@ -27,8 +28,15 @@ export function InputBox({
       if (key.return) {
         const trimmed = text.trim();
         if (trimmed) {
-          // TODO: dispatch ADD_USER_MESSAGE once send logic is wired
-          void dispatch;
+          dispatch({
+            type: 'ADD_USER_MESSAGE',
+            message: {
+              id: nanoid(),
+              role: 'user',
+              content: trimmed,
+              timestamp: Date.now(),
+            },
+          });
         }
         setText('');
         setCursor(0);
