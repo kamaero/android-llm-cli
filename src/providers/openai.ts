@@ -73,12 +73,14 @@ export class OpenAIProvider implements IProvider {
   readonly name: string;
   readonly model: string;
   readonly capabilities: ProviderCapabilities;
+  private disableReasoning: boolean;
 
   private client: OpenAI;
 
   constructor(name: string, model: string, apiKey: string, baseUrl?: string) {
     this.name = name;
     this.model = model;
+    this.disableReasoning = !!baseUrl && baseUrl.includes('deepseek');
     this.capabilities = {
       streaming: true,
       tools: true,
@@ -99,7 +101,8 @@ export class OpenAIProvider implements IProvider {
         tools: options?.tools ? toOpenAITools(options.tools) : undefined,
         stream: true,
         stream_options: { include_usage: true },
-      },
+        ...(this.disableReasoning ? { thinking: { type: null } } : {}),
+      } as OpenAI.Chat.Completions.ChatCompletionCreateParamsStreaming,
       {
         signal: options?.signal,
       }
