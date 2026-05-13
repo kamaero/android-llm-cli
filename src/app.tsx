@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useReducer, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { nanoid } from 'nanoid';
 import type {
   AppAction,
@@ -16,9 +16,18 @@ import { agentLoop, executeToolCall } from './agent/agentLoop.js';
 import type { ConfigType } from './schemas.js';
 import { createProvider } from './providers/registry.js';
 import { buildPromptContext } from './prompts/buildPromptContext.js';
-import { saveSession } from './storage/session.js';
+import {
+  appendWalEntry,
+  deleteWalFile,
+  loadSession,
+  recoverFromWal,
+  saveSession,
+  scanWalFiles,
+  type WalScanEntry,
+} from './storage/session.js';
 import { ToolRegistry } from './tools/registry.js';
 import { Layout } from './ui/Layout.js';
+import { RecoveryPrompt } from './ui/RecoveryPrompt.js';
 import { executeCommand, type CommandContext } from './commands/index.js';
 
 export type { ConfigType };
@@ -26,11 +35,21 @@ export type { ConfigType };
 interface AppDependencies {
   createProvider: typeof createProvider;
   saveSession: typeof saveSession;
+  loadSession: typeof loadSession;
+  appendWalEntry: typeof appendWalEntry;
+  recoverFromWal: typeof recoverFromWal;
+  deleteWalFile: typeof deleteWalFile;
+  scanWalFiles: typeof scanWalFiles;
 }
 
 const DEFAULT_DEPS: AppDependencies = {
   createProvider,
   saveSession,
+  loadSession,
+  appendWalEntry,
+  recoverFromWal,
+  deleteWalFile,
+  scanWalFiles,
 };
 
 function mapEnvironment(config: ConfigType): RuntimeEnvironment {
@@ -87,6 +106,39 @@ function makeToolMessage(toolResult: ToolResult): Message {
     content: toolResult.output,
     tool_result: toolResult,
     timestamp: Date.now(),
+  };
+}
+
+function rebuildAssistantContent(chunks: StreamChunk[]): string {
+  return chunks
+    .filter((chunk): chunk is Extract<StreamChunk, { type: 'text' }> => chunk.type === 'text')
+    .map((chunk) => chunk.delta)
+    .join('');
+}
+
+function makeRecoveredSession(config: ConfigType, id: string, assistantContent: string): Session {
+  const provider = config.default_provider;
+  const providerCfg = config.providers[provider];
+  const now = Date.now();
+
+  return {
+    id,
+    title: `Recovered ${id.slice(0, 8)}`,
+    provider,
+    model: providerCfg?.model ?? 'unknown',
+    mode: config.default_mode,
+    messages: assistantContent
+      ? [
+          {
+            id: nanoid(),
+            role: 'assistant',
+            content: assistantContent,
+            timestamp: now,
+          },
+        ]
+      : [],
+    createdAt: now,
+    updatedAt: now,
   };
 }
 
@@ -291,7 +343,7 @@ interface AppProps {
 }
 
 export function App({ config, deps }: AppProps) {
-  const runtimeDeps = { ...DEFAULT_DEPS, ...deps };
+  const runtimeDeps = useMemo(() => ({ ...DEFAULT_DEPS, ...deps }), [deps]);
   const [mode] = useState<'chat' | 'agent'>(config.default_mode);
   const initialState: AppState = {
     session: makeSession(config),
@@ -309,10 +361,15 @@ export function App({ config, deps }: AppProps) {
   const toolRegistryRef = useRef(new ToolRegistry());
   const abortControllerRef = useRef(new AbortController());
   const iterationRef = useRef(0);
+  const [recoveryMode, setRecoveryMode] = useState<WalScanEntry[]>([]);
 
   useEffect(() => {
     stateRef.current = state;
   }, [state]);
+
+  useEffect(() => {
+    setRecoveryMode(runtimeDeps.scanWalFiles());
+  }, [runtimeDeps]);
 
   const dispatch = useCallback(
     (action: AppAction): AppState => {
@@ -376,6 +433,7 @@ export function App({ config, deps }: AppProps) {
 
       try {
         for await (const chunk of provider.stream(session.messages, { systemPrompt, tools })) {
+          runtimeDeps.appendWalEntry(session.id, chunk);
           const shouldPause = handleStreamChunk(chunk, dispatch);
           if (shouldPause) {
             return;
@@ -384,6 +442,7 @@ export function App({ config, deps }: AppProps) {
 
         const finalState = dispatch({ type: 'STOP_STREAMING' });
         runtimeDeps.saveSession(finalState.session);
+        runtimeDeps.deleteWalFile(session.id);
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         dispatch({ type: 'SET_ERROR', error: message });
@@ -396,9 +455,10 @@ export function App({ config, deps }: AppProps) {
     async (message: Message): Promise<void> => {
       iterationRef.current = 0;
       const nextState = dispatch({ type: 'ADD_USER_MESSAGE', message });
+      runtimeDeps.saveSession(nextState.session);
       await fetchResponse(nextState.session, 0);
     },
-    [dispatch, fetchResponse],
+    [dispatch, fetchResponse, runtimeDeps],
   );
 
   const handleToolDecision = useCallback(
@@ -477,6 +537,55 @@ export function App({ config, deps }: AppProps) {
     },
     [config, dispatch],
   );
+
+  const handleRecoverAll = useCallback(async (): Promise<void> => {
+    for (const orphan of recoveryMode) {
+      const chunks = runtimeDeps.recoverFromWal(orphan.id);
+      const assistantContent = rebuildAssistantContent(chunks);
+
+      let session: Session;
+      try {
+        session = runtimeDeps.loadSession(orphan.id);
+      } catch {
+        session = makeRecoveredSession(config, orphan.id, assistantContent);
+      }
+
+      if (assistantContent) {
+        session = withUpdatedTimestamp({
+          ...session,
+          messages: [
+            ...session.messages,
+            {
+              id: nanoid(),
+              role: 'assistant',
+              content: assistantContent,
+              timestamp: Date.now(),
+            },
+          ],
+        });
+      }
+
+      runtimeDeps.saveSession(session);
+      runtimeDeps.deleteWalFile(orphan.id);
+    }
+  }, [config, recoveryMode, runtimeDeps]);
+
+  const handleDiscardAll = useCallback(async (): Promise<void> => {
+    for (const orphan of recoveryMode) {
+      runtimeDeps.deleteWalFile(orphan.id);
+    }
+  }, [recoveryMode, runtimeDeps]);
+
+  if (recoveryMode.length > 0) {
+    return (
+      <RecoveryPrompt
+        orphans={recoveryMode}
+        onRecoverAll={handleRecoverAll}
+        onDiscardAll={handleDiscardAll}
+        onDone={() => setRecoveryMode([])}
+      />
+    );
+  }
 
   return <Layout state={state} dispatch={boundDispatch} onCommand={handleCommand} />;
 }
