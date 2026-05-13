@@ -1,8 +1,0 @@
-task: T-18
-agent: claude
-branch: claude/T-18-code-highlight
-started_at: 2026-05-13T09:31:00Z
-files:
-  - src/ui/CodeBlock.tsx     # create
-  - src/ui/MessageItem.tsx   # modify
-  - tests/CodeBlock.test.tsx # create

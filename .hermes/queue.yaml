@@ -128,7 +128,7 @@ queue:
       - npm run build
   - id: T-18
     title: Code block syntax highlighting
-    status: running
+    status: done
     assigned_agent: claude
     depends_on: []
     files_allowed:
