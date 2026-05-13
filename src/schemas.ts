@@ -65,7 +65,7 @@ export const ConfigSchema = z.object({
   default_provider: z.string(),
   default_mode: z.enum(['chat', 'agent']).default('chat'),
   environment: RuntimeEnvironmentSchema.default({ type: 'termux', include_builtin_context: true }),
-  security: SecuritySchema,
+  security: SecuritySchema.default({ mode: 'normal', workspace_root: '$HOME/projects' }),
   providers: z.record(z.string(), ProviderConfigSchema),
 });
 

@@ -53,5 +53,16 @@ export function loadConfig(explicitPath?: string): ConfigType {
   const parsed = load(raw) as Record<string, unknown>;
   const interpolated = interpolateDeep(parsed);
 
+  // ── Migration: old session_policy → new security ──
+  const obj = interpolated as Record<string, unknown>;
+  if (obj && !('security' in obj) && 'session_policy' in obj) {
+    const sp = obj.session_policy as Record<string, unknown> | undefined;
+    obj.security = {
+      mode: 'normal',
+      workspace_root: (sp?.workspace_root as string) ?? '$HOME/projects',
+    };
+    delete obj.session_policy;
+  }
+
   return ConfigSchema.parse(interpolated);
 }
