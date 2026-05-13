@@ -1,0 +1,53 @@
+# ============================================================
+# android-llm-cli — Configuration template
+# ============================================================
+# Copy this file to ~/.config/a-llmcli/config.yaml
+# (or run `a-llmcli` once to auto-create it).
+# ============================================================
+
+# ---- Default provider ----
+default_provider: anthropic
+default_mode: chat              # "chat" or "agent"
+
+# ---- Environment ----
+environment:
+  type: termux                  # termux | linux | macos | windows | unknown
+  include_builtin_context: true # prepend built-in Termux/Android context
+  # extra_context: |            # custom instructions for the LLM
+  #   User prefers concise explanations in Russian.
+
+# ---- Session policy ----
+session_policy:
+  profile: code-workspace       # safe-chat | code-workspace | full-termux-agent
+  workspace_root: "$HOME/projects"
+  dry_run_first: false
+
+  # Confirmation modes: always | batch | never
+  bash_confirmation: always
+  file_confirmation: always
+  network_confirmation: always
+  peripheral_confirmation: always
+
+# ---- Providers ----
+providers:
+  anthropic:
+    type: anthropic
+    api_key: ${ANTHROPIC_API_KEY}
+    model: claude-sonnet-4-6
+
+  openai:
+    type: openai
+    api_key: ${OPENAI_API_KEY}
+    model: gpt-4o
+
+  deepseek:
+    type: openai
+    api_key: ${DEEPSEEK_API_KEY}
+    base_url: https://api.deepseek.com/v1
+    model: deepseek-chat
+
+  openrouter:
+    type: openai
+    api_key: ${OPENROUTER_API_KEY}
+    base_url: https://openrouter.ai/api/v1
+    model: anthropic/claude-sonnet-4-6
