@@ -1,9 +1,10 @@
 #!/usr/bin/env node
 import React from 'react';
-import {render} from 'ink';
+import { render } from 'ink';
 import meow from 'meow';
 
-import {App} from './app.js';
+import { App } from './app.js';
+import { loadConfig } from './storage/config.js';
 
 const cli = meow(
   `
@@ -20,14 +21,16 @@ const cli = meow(
     importMeta: import.meta,
     flags: {
       config: {
-        type: 'string'
+        type: 'string',
       },
       debug: {
         type: 'boolean',
-        default: false
-      }
-    }
-  }
+        default: false,
+      },
+    },
+  },
 );
 
-render(React.createElement(App));
+const config = loadConfig(cli.flags.config);
+
+render(React.createElement(App, { config }));
