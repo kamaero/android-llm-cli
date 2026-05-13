@@ -1,0 +1,9 @@
+task: T-16
+agent: codex
+branch: codex/T-16-crash-recovery
+started_at: 2026-05-13T09:48:00Z
+files:
+  - src/storage/session.ts   # modify — add scanWalFiles()
+  - src/app.tsx              # modify — startup effect scanWalFiles()
+  - src/ui/RecoveryPrompt.tsx # create
+  - tests/recovery.test.tsx  # create

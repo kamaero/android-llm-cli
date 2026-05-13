@@ -1,15 +1,15 @@
 codex:
-  status: idle
-  current_task: null
-  session_started_at: 2026-05-13T08:47:00Z
+  status: running
+  current_task: T-16
+  session_started_at: 2026-05-13T09:48:00Z
   max_runtime_hours: 5
-  notes: "Completed T-10 (registry), T-12 (bash), T-13 (file tools)"
+  notes: "Running T-16 (crash recovery)"
 claude:
   status: idle
   current_task: null
   session_started_at: 2026-05-13T09:04:00Z
   max_runtime_hours: 5
-  notes: "Completed T-15 (slash), T-14 (agent loop)"
+  notes: "Completed T-15 (slash), T-14 (agent loop), T-18 (code block)"
 deepseek:
   status: idle
   current_task: null
