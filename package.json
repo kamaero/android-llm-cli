@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "bin": {
-    "a-llmcli": "./dist/index.js"
+    "a-llmcli": "./dist/src/index.js"
   },
   "engines": {
     "node": ">=20"
