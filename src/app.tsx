@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useReducer, useRef } from 'react';
+import React, { useCallback, useEffect, useReducer, useRef, useState } from 'react';
 import { nanoid } from 'nanoid';
 import type {
   AppAction,
@@ -16,6 +16,7 @@ import type { ConfigType } from './schemas.js';
 import { createProvider } from './providers/registry.js';
 import { buildPromptContext } from './prompts/buildPromptContext.js';
 import { saveSession } from './storage/session.js';
+import { ToolRegistry } from './tools/registry.js';
 import { Layout } from './ui/Layout.js';
 
 export type { ConfigType };
@@ -252,6 +253,7 @@ interface AppProps {
 
 export function App({ config, deps }: AppProps) {
   const runtimeDeps = { ...DEFAULT_DEPS, ...deps };
+  const [mode] = useState<'chat' | 'agent'>(config.default_mode);
   const initialState: AppState = {
     session: makeSession(config),
     status: 'idle',
@@ -265,6 +267,7 @@ export function App({ config, deps }: AppProps) {
   const stateRef = useRef(state);
   const providerRef = useRef<IProvider | null>(null);
   const pendingConfirmRef = useRef<Promise<void> | null>(null);
+  const toolRegistryRef = useRef(new ToolRegistry());
 
   useEffect(() => {
     stateRef.current = state;
@@ -306,11 +309,15 @@ export function App({ config, deps }: AppProps) {
         environment: mapEnvironment(config),
         sessionPolicy: mapSessionPolicy(config),
       });
+      const tools =
+        mode === 'agent' && provider.capabilities.tools
+          ? toolRegistryRef.current.enabledFor(provider)
+          : undefined;
 
       dispatch({ type: 'START_STREAMING' });
 
       try {
-        for await (const chunk of provider.stream(session.messages, { systemPrompt })) {
+        for await (const chunk of provider.stream(session.messages, { systemPrompt, tools })) {
           const shouldPause = handleStreamChunk(chunk, dispatch);
           if (shouldPause) {
             return;
@@ -324,7 +331,7 @@ export function App({ config, deps }: AppProps) {
         dispatch({ type: 'SET_ERROR', error: message });
       }
     },
-    [config, dispatch, getProvider, runtimeDeps],
+    [config, dispatch, getProvider, mode, runtimeDeps],
   );
 
   const handleAddUserMessage = useCallback(
