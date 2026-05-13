@@ -15,9 +15,12 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.95.2",
     "ink": "^4.4.1",
     "js-yaml": "^4.1.1",
     "meow": "^13.2.0",
+    "nanoid": "^5.1.11",
+    "openai": "^6.37.0",
     "react": "^18.3.1",
     "zod": "^4.4.3"
   },
