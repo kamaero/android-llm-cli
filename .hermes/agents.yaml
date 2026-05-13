@@ -1,26 +1,21 @@
 codex:
-  status: running
-  current_task: T-13
-  branch: codex/T-13-file-tools
-  worktree: /root/projects/worktrees/codex-T-13-file-tools
-  session_started_at: 2026-05-13T09:10:00Z
+  status: idle
+  current_task: null
+  session_started_at: 2026-05-13T08:47:00Z
   max_runtime_hours: 5
-  notes: "Running T-13 (read_file + write_file tools)"
+  notes: "Completed T-10 (registry), T-12 (bash), T-13 (file tools)"
 claude:
-  status: running
-  current_task: T-14
-  branch: claude/T-14-agent-loop
-  worktree: /root/projects/worktrees/claude-T-14-agent-loop
-  session_started_at: 2026-05-13T09:10:00Z
+  status: idle
+  current_task: null
+  session_started_at: 2026-05-13T09:04:00Z
   max_runtime_hours: 5
-  notes: "Running T-14 (agent loop orchestration)"
+  notes: "Completed T-15 (slash), T-14 (agent loop)"
 deepseek:
   status: idle
   current_task: null
   session_started_at: null
   max_runtime_hours: 5
 hermes:
-  status: orchestrating
-  current_task: monitoring T-13 + T-14
-  session_started_at: 2026-05-13T09:10:00Z
-  notes: "Parallel run: Codex→T-13 file tools, Claude→T-14 agent loop"
+  status: idle
+  current_task: null
+  notes: "Tools block done. Ready for next phase."
