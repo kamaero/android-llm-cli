@@ -131,7 +131,11 @@ export type AppAction =
   | { type: 'STOP_STREAMING' }
   | { type: 'SET_ERROR'; error: string }
   | { type: 'CONFIRM_TOOL'; toolCallId: string }
-  | { type: 'REJECT_TOOL'; toolCallId: string };
+  | { type: 'REJECT_TOOL'; toolCallId: string }
+  | { type: 'RESET_MESSAGES' }
+  | { type: 'SET_MODEL'; model: string }
+  | { type: 'SET_MODE'; mode: 'chat' | 'agent' }
+  | { type: 'ADD_COMMAND_OUTPUT'; content: string };
 
 // ── Config (used by zod schema, re-exported from schemas.ts) ──
 
