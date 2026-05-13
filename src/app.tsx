@@ -18,6 +18,7 @@ import { buildPromptContext } from './prompts/buildPromptContext.js';
 import { saveSession } from './storage/session.js';
 import { ToolRegistry } from './tools/registry.js';
 import { Layout } from './ui/Layout.js';
+import { executeCommand, type CommandContext } from './commands/index.js';
 
 export type { ConfigType };
 
@@ -237,6 +238,43 @@ export function appReducer(state: AppState, action: AppAction, config: ConfigTyp
           state.pendingToolCall?.call.id === action.toolCallId ? undefined : state.pendingToolCall,
       };
 
+    case 'RESET_MESSAGES':
+      return {
+        ...state,
+        status: 'idle',
+        error: undefined,
+        pendingToolCall: undefined,
+        session: withUpdatedTimestamp({ ...state.session, messages: [] }),
+      };
+
+    case 'SET_MODEL':
+      return {
+        ...state,
+        session: withUpdatedTimestamp({ ...state.session, model: action.model }),
+      };
+
+    case 'SET_MODE':
+      return {
+        ...state,
+        session: withUpdatedTimestamp({ ...state.session, mode: action.mode }),
+      };
+
+    case 'ADD_COMMAND_OUTPUT': {
+      const msg: Message = {
+        id: nanoid(),
+        role: 'assistant',
+        content: action.content,
+        timestamp: Date.now(),
+      };
+      return {
+        ...state,
+        session: withUpdatedTimestamp({
+          ...state.session,
+          messages: [...state.session.messages, msg],
+        }),
+      };
+    }
+
     default:
       return state;
   }
@@ -392,7 +430,22 @@ export function App({ config, deps }: AppProps) {
     [dispatch, handleAddUserMessage, handleToolDecision],
   );
 
-  return <Layout state={state} dispatch={boundDispatch} />;
+  const handleCommand = useCallback(
+    async (input: string): Promise<void> => {
+      const ctx: CommandContext = {
+        state: stateRef.current,
+        dispatch,
+        config,
+      };
+      const output = await executeCommand(input, ctx);
+      if (output !== null) {
+        dispatch({ type: 'ADD_COMMAND_OUTPUT', content: output });
+      }
+    },
+    [config, dispatch],
+  );
+
+  return <Layout state={state} dispatch={boundDispatch} onCommand={handleCommand} />;
 }
 
 function handleStreamChunk(

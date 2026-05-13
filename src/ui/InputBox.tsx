@@ -5,12 +5,14 @@ import type { AppAction } from '../types.js';
 
 interface InputBoxProps {
   dispatch: React.Dispatch<AppAction>;
+  onCommand?: (input: string) => void;
   isActive?: boolean;
   placeholder?: string;
 }
 
 export function InputBox({
   dispatch,
+  onCommand,
   isActive = true,
   placeholder = 'Type a message… (Ctrl+C to quit)',
 }: InputBoxProps) {
@@ -28,15 +30,19 @@ export function InputBox({
       if (key.return) {
         const trimmed = text.trim();
         if (trimmed) {
-          dispatch({
-            type: 'ADD_USER_MESSAGE',
-            message: {
-              id: nanoid(),
-              role: 'user',
-              content: trimmed,
-              timestamp: Date.now(),
-            },
-          });
+          if (trimmed.startsWith('/')) {
+            onCommand?.(trimmed);
+          } else {
+            dispatch({
+              type: 'ADD_USER_MESSAGE',
+              message: {
+                id: nanoid(),
+                role: 'user',
+                content: trimmed,
+                timestamp: Date.now(),
+              },
+            });
+          }
         }
         setText('');
         setCursor(0);
