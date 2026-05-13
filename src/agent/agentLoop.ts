@@ -13,6 +13,51 @@ import type { ToolRegistry } from '../tools/registry.js';
 import { DEFAULT_RETRY_OPTS, withRetry } from '../streaming/retry.js';
 import { needsConfirm } from '../security/needsConfirm.js';
 
+/**
+ * Throttled batcher for reasoning chunks.
+ * Collects reasoning deltas and dispatches a single APPEND_REASONING
+ * at most once per `intervalMs`. This prevents render flickering from
+ * high-frequency tiny reasoning chunks (DeepSeek thinking).
+ */
+function createReasoningBatcher(
+  dispatch: (action: AppAction) => AppState,
+  intervalMs = 60,
+) {
+  let buffer = '';
+  let timer: ReturnType<typeof setTimeout> | null = null;
+
+  function flush() {
+    if (buffer) {
+      dispatch({ type: 'APPEND_REASONING', delta: buffer });
+      buffer = '';
+    }
+    timer = null;
+  }
+
+  return {
+    add(delta: string) {
+      buffer += delta;
+      if (!timer) {
+        timer = setTimeout(flush, intervalMs);
+      }
+    },
+    flush() {
+      if (timer) {
+        clearTimeout(timer);
+        timer = null;
+      }
+      flush();
+    },
+    cancel() {
+      if (timer) {
+        clearTimeout(timer);
+        timer = null;
+      }
+      buffer = '';
+    },
+  };
+}
+
 export interface AgentLoopParams {
   session: Session;
   provider: IProvider;
@@ -92,6 +137,7 @@ export async function agentLoop(params: AgentLoopParams): Promise<void> {
 
     try {
       let streamAttempt = 0;
+      const reasoningBatcher = createReasoningBatcher(dispatch);
 
       await withRetry(
         async () => {
@@ -107,12 +153,15 @@ export async function agentLoop(params: AgentLoopParams): Promise<void> {
 
             switch (chunk.type) {
               case 'text':
+                // Flush any pending reasoning before text starts (thinking → response transition)
+                reasoningBatcher.flush();
                 dispatch({ type: 'APPEND_TEXT', delta: chunk.delta });
                 break;
               case 'reasoning':
-                dispatch({ type: 'APPEND_REASONING', delta: chunk.delta });
+                reasoningBatcher.add(chunk.delta);
                 break;
               case 'tool_call':
+                reasoningBatcher.flush();
                 toolCall = {
                   id: chunk.id,
                   name: chunk.name,
@@ -128,6 +177,7 @@ export async function agentLoop(params: AgentLoopParams): Promise<void> {
                 });
                 break;
               case 'done':
+                reasoningBatcher.flush();
                 break;
             }
 
