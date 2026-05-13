@@ -115,7 +115,8 @@ queue:
     title: Error handling + retry layer
     status: planned
     assigned_agent: codex
-    depends_on: []
+    depends_on:
+      - T-16
     files_allowed:
       - src/streaming/retry.ts
       - src/app.tsx
