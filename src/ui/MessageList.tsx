@@ -11,7 +11,7 @@ interface MessageListProps {
   messages: Message[];
 }
 
-export function MessageList({ messages }: MessageListProps) {
+function MessageListInner({ messages }: MessageListProps) {
   if (messages.length === 0) {
     return (
       <Box flexGrow={1} alignItems="center" justifyContent="center">
@@ -36,3 +36,10 @@ export function MessageList({ messages }: MessageListProps) {
     </Box>
   );
 }
+
+/**
+ * Memoised message list — only re-renders when the messages array reference changes
+ * (streaming creates a new array, so this WILL re-render, but individual MessageItems
+ * inside are memoised and skip unless their content changed).
+ */
+export const MessageList = React.memo(MessageListInner);

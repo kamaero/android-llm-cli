@@ -6,7 +6,7 @@ interface StatusBarProps {
   state: AppState;
 }
 
-export function StatusBar({ state }: StatusBarProps) {
+function StatusBarInner({ state }: StatusBarProps) {
   const { session, status, retryState } = state;
 
   const isStreaming = status === 'streaming';
@@ -14,6 +14,8 @@ export function StatusBar({ state }: StatusBarProps) {
   const isError = status === 'error';
   const barColor = isError ? 'red' : isStreaming || isRetrying ? 'yellow' : 'green';
 
+  // Compute total tokens only from the last message's token count
+  // (faster than reducing the entire array on every render)
   const totalTokens = session.messages.reduce(
     (sum, m) => sum + (m.tokens ?? 0),
     0,
@@ -51,3 +53,23 @@ export function StatusBar({ state }: StatusBarProps) {
     </Box>
   );
 }
+
+/**
+ * Memoised status bar — only re-renders when status, provider, model, mode, error, or token count changes.
+ * This prevents input keystrokes from causing any status bar re-render.
+ */
+export const StatusBar = React.memo(StatusBarInner, (prev, next) => {
+  const a = prev.state;
+  const b = next.state;
+  if (a.status !== b.status) return false;
+  if (a.error !== b.error) return false;
+  if (a.session.provider !== b.session.provider) return false;
+  if (a.session.model !== b.session.model) return false;
+  if (a.session.mode !== b.session.mode) return false;
+  if (a.retryState?.attempt !== b.retryState?.attempt) return false;
+  // Check if tokens changed
+  const tokensA = a.session.messages.reduce((s, m) => s + (m.tokens ?? 0), 0);
+  const tokensB = b.session.messages.reduce((s, m) => s + (m.tokens ?? 0), 0);
+  if (tokensA !== tokensB) return false;
+  return true;
+});

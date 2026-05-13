@@ -12,8 +12,6 @@ interface Segment {
   code?: boolean;
 }
 
-// Splits a single line into styled segments for inline markdown.
-// Priority: **bold** > _italic_ / *italic* > `code`
 export function parseInline(line: string): Segment[] {
   const RE = /\*\*([^*]+)\*\*|_([^_]+)_|\*([^*]+)\*|`([^`]+)`/g;
   const segments: Segment[] = [];
@@ -123,7 +121,7 @@ interface MessageItemProps {
   message: Message;
 }
 
-export function MessageItem({ message }: MessageItemProps) {
+function MessageItemInner({ message }: MessageItemProps) {
   const { role, content, tool_result, tool_calls } = message;
 
   if (role === 'user') {
@@ -180,3 +178,19 @@ export function MessageItem({ message }: MessageItemProps) {
     </Box>
   );
 }
+
+/**
+ * Memoised message item — only re-renders if id, content, or tool result changes.
+ * This is critical during streaming: only the last assistant message changes,
+ * all previous messages are skipped.
+ */
+export const MessageItem = React.memo(MessageItemInner, (prev, next) => {
+  const a = prev.message;
+  const b = next.message;
+  if (a.id !== b.id) return false;
+  if (a.content !== b.content) return false;
+  if (a.role !== b.role) return false;
+  // Compare tool_result reference (immutable — same object = same data)
+  if (a.tool_result !== b.tool_result) return false;
+  return true;
+});
