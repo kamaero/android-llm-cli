@@ -41,15 +41,26 @@ export async function setupWizard(): Promise<void> {
 
   if (provChoice === '2') {
     providerType = 'openai';
-    providerKey = await ask('  OpenAI API Key (или оставьте пустым для ${OPENAI_API_KEY})');
+    providerKey = await ask('  OpenAI / DeepSeek / OpenRouter API Key (или оставьте пустым для ${OPENAI_API_KEY})');
     envVar = providerKey ? '' : '${OPENAI_API_KEY}';
-    model = await ask('  Model', 'gpt-4o');
-    const baseUrlRaw = await ask('  Base URL (оставьте пустым для OpenAI)', '');
+    console.log('');
+    console.log('  Популярные модели:');
+    console.log('    • deepseek-v4-flash  — DeepSeek V4 Flash');
+    console.log('    • deepseek-v4-pro    — DeepSeek V4 Pro');
+    console.log('    • gpt-4o            — OpenAI GPT-4o');
+    console.log('    • gpt-4o-mini       — OpenAI GPT-4o Mini');
+    console.log('    • deepseek-chat     — DeepSeek V3');
+    model = await ask('  Model', 'deepseek-v4-flash');
+    const baseUrlRaw = await ask('  Base URL (Enter для OpenAI, или укажите свой)', '');
     baseUrl = baseUrlRaw || undefined;
   } else {
     providerType = 'anthropic';
     providerKey = await ask('  Anthropic API Key (или оставьте пустым для ${ANTHROPIC_API_KEY})');
     envVar = providerKey ? '' : '${ANTHROPIC_API_KEY}';
+    console.log('');
+    console.log('  Популярные модели:');
+    console.log('    • claude-sonnet-4-20250514  — Claude Sonnet 4');
+    console.log('    • claude-3-5-haiku-latest   — Claude 3.5 Haiku');
     model = await ask('  Model', 'claude-sonnet-4-20250514');
   }
 
