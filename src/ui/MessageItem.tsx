@@ -180,7 +180,7 @@ function MessageItemInner({ message }: MessageItemProps) {
 }
 
 /**
- * Memoised message item — only re-renders if id, content, or tool result changes.
+ * Memoised message item — only re-renders if id, content, tool_calls, or tool result changes.
  * This is critical during streaming: only the last assistant message changes,
  * all previous messages are skipped.
  */
@@ -192,5 +192,7 @@ export const MessageItem = React.memo(MessageItemInner, (prev, next) => {
   if (a.role !== b.role) return false;
   // Compare tool_result reference (immutable — same object = same data)
   if (a.tool_result !== b.tool_result) return false;
+  // Compare tool_calls reference (new array created on each update)
+  if (a.tool_calls !== b.tool_calls) return false;
   return true;
 });

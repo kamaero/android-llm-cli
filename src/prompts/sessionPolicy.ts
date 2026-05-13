@@ -1,34 +1,23 @@
-import type { SessionPolicy } from '../types.js';
+import type { SecurityConfig } from '../types.js';
 
-const PROFILE_DESCRIPTIONS: Record<string, string> = {
-  'safe-chat': 'Tools are disabled. Only chat mode is available.',
-  'code-workspace':
-    'Tools work inside the workspace root. Every action requires confirmation.',
-  'full-termux-agent':
-    'Full Termux agent mode with broader file system access. Destructive, network, and peripheral actions still require confirmation.',
-};
-
-const CONFIRMATION_LABELS: Record<string, string> = {
-  always: 'Always confirm',
-  batch: 'Batch confirm (confirm once per batch)',
-  never: 'Auto-approve (no confirmation)',
+const MODE_DESCRIPTIONS: Record<string, string> = {
+  normal: 'Smart auto-approval for safe operations (pwd, ls, git status, npm test, etc.). Confirmation required for risky operations (rm, install, curl, etc.).',
+  hardcore: 'Full auto-execution mode. All tools run automatically without confirmation.',
 };
 
 /**
- * Format session policy as human-readable text for the LLM prompt.
+ * Format security config as human-readable text for the LLM prompt.
  */
-export function formatSessionPolicy(policy: SessionPolicy): string {
-  const profileDesc =
-    PROFILE_DESCRIPTIONS[policy.profile] ?? 'Unknown profile';
+export function formatSecurityConfig(security: SecurityConfig): string {
+  const modeDesc = MODE_DESCRIPTIONS[security.mode] ?? 'Unknown mode';
 
   return [
-    `Session policy: ${policy.profile}`,
-    `  ${profileDesc}`,
-    `  Workspace root: ${policy.workspaceRoot}`,
-    `  Dry-run first: ${policy.dryRunFirst ? 'yes' : 'no'}`,
-    `  Bash: ${CONFIRMATION_LABELS[policy.bashConfirmation]}`,
-    `  File operations: ${CONFIRMATION_LABELS[policy.fileConfirmation]}`,
-    `  Network: ${CONFIRMATION_LABELS[policy.networkConfirmation]}`,
-    `  Peripherals: ${CONFIRMATION_LABELS[policy.peripheralConfirmation]}`,
+    `Security mode: ${security.mode}`,
+    `  ${modeDesc}`,
+    `  Workspace root: ${security.workspaceRoot}`,
+    '',
+    security.mode === 'normal'
+      ? 'In normal mode, these commands auto-run: pwd, ls, find, grep, cat, git status/diff/log, npm test/run, node, python, mkdir, touch, cd, echo (when paths are inside workspace)'
+      : 'In hardcore mode, all tools execute automatically without any confirmation.',
   ].join('\n');
 }

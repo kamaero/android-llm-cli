@@ -14,8 +14,7 @@ function StatusBarInner({ state }: StatusBarProps) {
   const isError = status === 'error';
   const barColor = isError ? 'red' : isStreaming || isRetrying ? 'yellow' : 'green';
 
-  // Compute total tokens only from the last message's token count
-  // (faster than reducing the entire array on every render)
+  // Compute total tokens from all messages
   const totalTokens = session.messages.reduce(
     (sum, m) => sum + (m.tokens ?? 0),
     0,
@@ -67,9 +66,11 @@ export const StatusBar = React.memo(StatusBarInner, (prev, next) => {
   if (a.session.model !== b.session.model) return false;
   if (a.session.mode !== b.session.mode) return false;
   if (a.retryState?.attempt !== b.retryState?.attempt) return false;
-  // Check if tokens changed
-  const tokensA = a.session.messages.reduce((s, m) => s + (m.tokens ?? 0), 0);
-  const tokensB = b.session.messages.reduce((s, m) => s + (m.tokens ?? 0), 0);
-  if (tokensA !== tokensB) return false;
+  // Efficient token comparison: check message count and last message tokens
+  // (during streaming, only the last message changes)
+  if (a.session.messages.length !== b.session.messages.length) return false;
+  const lastA = a.session.messages.at(-1);
+  const lastB = b.session.messages.at(-1);
+  if (lastA?.tokens !== lastB?.tokens) return false;
   return true;
 });

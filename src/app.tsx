@@ -7,7 +7,7 @@ import type {
   Message,
   RuntimeEnvironment,
   Session,
-  SessionPolicy,
+  SecurityConfig,
   StreamChunk,
   ToolCall,
   ToolResult,
@@ -61,15 +61,10 @@ function mapEnvironment(config: ConfigType): RuntimeEnvironment {
   };
 }
 
-function mapSessionPolicy(config: ConfigType): SessionPolicy {
+function mapSecurityConfig(config: ConfigType): SecurityConfig {
   return {
-    profile: config.session_policy.profile,
-    workspaceRoot: config.session_policy.workspace_root,
-    dryRunFirst: config.session_policy.dry_run_first,
-    bashConfirmation: config.session_policy.bash_confirmation,
-    fileConfirmation: config.session_policy.file_confirmation,
-    networkConfirmation: config.session_policy.network_confirmation,
-    peripheralConfirmation: config.session_policy.peripheral_confirmation,
+    mode: config.security.mode,
+    workspaceRoot: config.security.workspace_root,
   };
 }
 
@@ -400,17 +395,16 @@ interface AppProps {
 
 export function App({ config, deps }: AppProps) {
   const runtimeDeps = useMemo(() => ({ ...DEFAULT_DEPS, ...deps }), [deps]);
-  const [mode] = useState<'chat' | 'agent'>(config.default_mode);
-  const initialState: AppState = {
-    session: makeSession(config),
-    status: 'idle',
-    pendingToolCall: undefined,
-    retryState: undefined,
-  };
 
   const [state, setState] = useReducer(
     (currentState: AppState, action: AppAction) => reduceWithConfig(config, currentState, action),
-    initialState,
+    config,
+    (cfg) => ({
+      session: makeSession(cfg),
+      status: 'idle' as const,
+      pendingToolCall: undefined,
+      retryState: undefined,
+    }),
   );
   const stateRef = useRef(state);
   const providerRef = useRef<IProvider | null>(null);
@@ -460,10 +454,10 @@ export function App({ config, deps }: AppProps) {
   const fetchResponse = useCallback(
     async (session: Session, iteration = 0): Promise<void> => {
       const provider = getProvider();
-      const sessionPolicy = mapSessionPolicy(config);
+      const security = mapSecurityConfig(config);
       const systemPrompt = buildPromptContext({
         environment: mapEnvironment(config),
-        sessionPolicy,
+        security,
       });
 
       if (session.mode === 'agent') {
@@ -474,7 +468,7 @@ export function App({ config, deps }: AppProps) {
           toolRegistry: toolRegistryRef.current,
           systemPrompt,
           dispatch,
-          sessionPolicy,
+          security,
           saveSession: runtimeDeps.saveSession,
           signal: abortControllerRef.current.signal,
           iteration,
@@ -556,7 +550,7 @@ export function App({ config, deps }: AppProps) {
         toolResult = await executeToolCall(
           call,
           toolRegistryRef.current,
-          mapSessionPolicy(config),
+          mapSecurityConfig(config),
           abortControllerRef.current.signal,
         );
       } else {

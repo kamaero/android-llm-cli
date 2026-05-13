@@ -64,14 +64,9 @@ if (cli.flags.mock) {
       type: 'termux',
       include_builtin_context: true,
     },
-    session_policy: {
-      profile: 'safe-chat',
+    security: {
+      mode: 'normal',
       workspace_root: '/tmp',
-      dry_run_first: true,
-      bash_confirmation: 'always',
-      file_confirmation: 'always',
-      network_confirmation: 'always',
-      peripheral_confirmation: 'always',
     },
     providers: {
       mock: { type: 'mock' as const, api_key: '', model: 'mock-model' },

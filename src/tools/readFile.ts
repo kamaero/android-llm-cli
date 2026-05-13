@@ -12,7 +12,6 @@ const SENSITIVE_SEGMENTS: RegExp[] = [
   /[/\\]\.netrc$/,
   /[/\\]\.env(\.\w+)?$/,
   /[/\\]id_(rsa|ecdsa|ed25519|dsa)(\.pub)?$/,
-  /[/\\]config\.(yaml|yml)$/,
   /\.pem$/,
   /\.key$/,
 ];

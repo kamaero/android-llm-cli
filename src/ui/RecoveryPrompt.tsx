@@ -25,13 +25,23 @@ export function RecoveryPrompt({
 
     if (key === 'y') {
       setBusyLabel('Recovering sessions…');
-      void Promise.resolve(onRecoverAll()).then(onDone);
+      void Promise.resolve(onRecoverAll())
+        .then(onDone)
+        .catch((err: unknown) => {
+          setBusyLabel(`Error: ${err instanceof Error ? err.message : String(err)}`);
+          setTimeout(() => setBusyLabel(null), 3000);
+        });
       return;
     }
 
     if (key === 'd') {
       setBusyLabel('Discarding WAL files…');
-      void Promise.resolve(onDiscardAll()).then(onDone);
+      void Promise.resolve(onDiscardAll())
+        .then(onDone)
+        .catch((err: unknown) => {
+          setBusyLabel(`Error: ${err instanceof Error ? err.message : String(err)}`);
+          setTimeout(() => setBusyLabel(null), 3000);
+        });
       return;
     }
 

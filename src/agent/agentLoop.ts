@@ -4,13 +4,14 @@ import type {
   AppState,
   IProvider,
   Session,
-  SessionPolicy,
+  SecurityConfig,
   ToolCall,
   ToolContext,
   ToolResult,
 } from '../types.js';
 import type { ToolRegistry } from '../tools/registry.js';
 import { DEFAULT_RETRY_OPTS, withRetry } from '../streaming/retry.js';
+import { needsConfirm } from '../security/needsConfirm.js';
 
 export interface AgentLoopParams {
   session: Session;
@@ -18,7 +19,7 @@ export interface AgentLoopParams {
   toolRegistry: ToolRegistry;
   systemPrompt: string;
   dispatch: (action: AppAction) => AppState;
-  sessionPolicy: SessionPolicy;
+  security: SecurityConfig;
   saveSession: (session: Session) => void;
   signal: AbortSignal;
   /** How many tool executions have already occurred this session (for 'always' resume). */
@@ -39,7 +40,7 @@ function normalizeToolInput(input: unknown): Record<string, unknown> {
 export async function executeToolCall(
   toolCall: ToolCall,
   toolRegistry: ToolRegistry,
-  sessionPolicy: SessionPolicy,
+  security: SecurityConfig,
   signal: AbortSignal,
 ): Promise<ToolResult> {
   const tool = toolRegistry.get(toolCall.name);
@@ -53,7 +54,7 @@ export async function executeToolCall(
 
   const ctx: ToolContext = {
     signal,
-    workspaceRoot: sessionPolicy.workspaceRoot,
+    workspaceRoot: security.workspaceRoot,
   };
 
   try {
@@ -76,12 +77,11 @@ export async function executeToolCall(
  * internally up to AGENT_LOOP_MAX_ITERATIONS_MVP times.
  */
 export async function agentLoop(params: AgentLoopParams): Promise<void> {
-  const { provider, toolRegistry, systemPrompt, dispatch, sessionPolicy, saveSession, signal } =
+  const { provider, toolRegistry, systemPrompt, dispatch, security, saveSession, signal } =
     params;
 
   let session = params.session;
   let iteration = params.iteration ?? 0;
-  const requiresConfirmation = sessionPolicy.bashConfirmation === 'always';
 
   while (iteration < AGENT_LOOP_MAX_ITERATIONS_MVP) {
     const tools = provider.capabilities.tools ? toolRegistry.list() : undefined;
@@ -96,6 +96,8 @@ export async function agentLoop(params: AgentLoopParams): Promise<void> {
       await withRetry(
         async () => {
           if (streamAttempt > 0) {
+            // Reset tool call state on retry
+            toolCall = null;
             dispatch({ type: 'RESUME_STREAMING' });
           }
           streamAttempt += 1;
@@ -113,7 +115,7 @@ export async function agentLoop(params: AgentLoopParams): Promise<void> {
                   name: chunk.name,
                   input: normalizeToolInput(chunk.input),
                 };
-                dispatch({ type: 'SET_TOOL_CALL', toolCall });
+                // Don't dispatch SET_TOOL_CALL during retry - wait until stream completes successfully
                 break;
               case 'usage':
                 dispatch({
@@ -138,6 +140,11 @@ export async function agentLoop(params: AgentLoopParams): Promise<void> {
           });
         },
       );
+
+      // Only dispatch SET_TOOL_CALL after successful completion of withRetry
+      if (toolCall) {
+        dispatch({ type: 'SET_TOOL_CALL', toolCall });
+      }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       dispatch({ type: 'SET_ERROR', error: message });
@@ -150,13 +157,13 @@ export async function agentLoop(params: AgentLoopParams): Promise<void> {
       return;
     }
 
-    // Tool call encountered — pause for user if 'always', else auto-execute.
-    if (requiresConfirmation) {
-      return;
+    // Tool call encountered — check if it needs confirmation
+    if (needsConfirm(toolCall, security)) {
+      return; // Pause for user confirmation
     }
 
     iteration++;
-    const toolResult = await executeToolCall(toolCall, toolRegistry, sessionPolicy, signal);
+    const toolResult = await executeToolCall(toolCall, toolRegistry, security, signal);
     const stateWithResult = dispatch({ type: 'SET_TOOL_RESULT', toolResult });
     session = stateWithResult.session;
 

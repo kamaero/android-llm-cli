@@ -43,16 +43,9 @@ export type SessionType = z.infer<typeof SessionSchema>;
 
 // ── Config schema (mirrors config.yaml structure) ──
 
-const ProfileTypeSchema = z.enum(['safe-chat', 'code-workspace', 'full-termux-agent']);
-
-const SessionPolicySchema = z.object({
-  profile: ProfileTypeSchema,
+const SecuritySchema = z.object({
+  mode: z.enum(['normal', 'hardcore']),
   workspace_root: z.string(),
-  dry_run_first: z.boolean(),
-  bash_confirmation: z.enum(['always', 'batch', 'never']),
-  file_confirmation: z.enum(['always', 'batch', 'never']),
-  network_confirmation: z.enum(['always', 'batch', 'never']),
-  peripheral_confirmation: z.enum(['always', 'batch', 'never']),
 });
 
 const RuntimeEnvironmentSchema = z.object({
@@ -72,7 +65,7 @@ export const ConfigSchema = z.object({
   default_provider: z.string(),
   default_mode: z.enum(['chat', 'agent']).default('chat'),
   environment: RuntimeEnvironmentSchema.default({ type: 'termux', include_builtin_context: true }),
-  session_policy: SessionPolicySchema,
+  security: SecuritySchema,
   providers: z.record(z.string(), ProviderConfigSchema),
 });
 

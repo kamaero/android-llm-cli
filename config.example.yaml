@@ -7,7 +7,7 @@
 
 # ---- Default provider ----
 default_provider: anthropic
-default_mode: chat              # "chat" or "agent"
+default_mode: agent             # "chat" or "agent"
 
 # ---- Environment ----
 environment:
@@ -16,17 +16,14 @@ environment:
   # extra_context: |            # custom instructions for the LLM
   #   User prefers concise explanations in Russian.
 
-# ---- Session policy ----
-session_policy:
-  profile: code-workspace       # safe-chat | code-workspace | full-termux-agent
+# ---- Security ----
+security:
+  mode: normal                  # "normal" or "hardcore"
   workspace_root: "$HOME/projects"
-  dry_run_first: false
 
-  # Confirmation modes: always | batch | never
-  bash_confirmation: always
-  file_confirmation: always
-  network_confirmation: always
-  peripheral_confirmation: always
+  # Normal mode: Smart auto-approval for safe operations (pwd, ls, git status, npm test, etc.)
+  #              Confirmation required for risky operations (rm, install, curl, etc.)
+  # Hardcore mode: Full auto-execution without confirmations (risky!)
 
 # ---- Providers ----
 providers:

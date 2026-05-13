@@ -111,19 +111,26 @@ export class OpenAIProvider implements IProvider {
       { id: string; name: string; arguments: string }
     >();
 
+    let sawDone = false;
     for await (const chunk of stream) {
       const parsed = this.parseChunk(chunk, toolCallsByIndex);
       if (parsed) {
         if (Array.isArray(parsed)) {
-          for (const p of parsed) yield p;
+          for (const p of parsed) {
+            yield p;
+            if (p.type === 'done') sawDone = true;
+          }
         } else {
           yield parsed;
+          if (parsed.type === 'done') sawDone = true;
         }
       }
     }
 
-    // If usage wasn't delivered via stream_options, emit a done
-    yield { type: 'done' };
+    // Emit done only if we didn't already see one
+    if (!sawDone) {
+      yield { type: 'done' };
+    }
   }
 
   private parseChunk(

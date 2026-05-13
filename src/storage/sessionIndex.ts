@@ -113,12 +113,6 @@ export function rebuildIndex(): SessionIndexEntry[] {
   ensureDir(dir);
 
   const entries: SessionIndexEntry[] = [];
-
-  if (!existsSync(dir)) {
-    writeFileSync(indexPath(), '[]', { mode: 0o600 });
-    return entries;
-  }
-
   const files = readdirSync(dir);
 
   for (const file of files) {

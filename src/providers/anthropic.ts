@@ -80,6 +80,11 @@ export class AnthropicProvider implements IProvider {
 
   private client: Anthropic;
 
+  // Tool call accumulation state
+  private currentToolId: string | null = null;
+  private currentToolName: string | null = null;
+  private currentToolInputBuffer = '';
+
   constructor(name: string, model: string, apiKey: string) {
     this.name = name;
     this.model = model;
@@ -109,39 +114,79 @@ export class AnthropicProvider implements IProvider {
       options.signal.addEventListener('abort', () => stream.abort(), { once: true });
     }
 
+    let sawDone = false;
     for await (const event of stream) {
       const chunk = this.parseEvent(event);
-      if (chunk) yield chunk;
+      if (chunk) {
+        yield chunk;
+        if (chunk.type === 'done') sawDone = true;
+      }
     }
 
-    // Emit final done event if we didn't already
-    yield { type: 'done' };
+    // Emit final done event only if we didn't already see one
+    if (!sawDone) {
+      yield { type: 'done' };
+    }
   }
 
   private parseEvent(event: RawMessageStreamEvent): StreamChunk | null {
     switch (event.type) {
-      case 'content_block_delta': {
-        if (event.delta.type === 'text_delta') {
-          return { type: 'text', delta: event.delta.text };
-        }
-        return null;
+      case 'message_start': {
+        // Capture input tokens from message start
+        return {
+          type: 'usage',
+          inputTokens: event.message.usage.input_tokens,
+          outputTokens: 0,
+        };
       }
       case 'content_block_start': {
         if (event.content_block.type === 'tool_use') {
           const tb = event.content_block as ToolUseBlock;
-          return {
+          // Initialize tool call accumulation - don't emit yet
+          this.currentToolId = tb.id;
+          this.currentToolName = tb.name;
+          this.currentToolInputBuffer = '';
+        }
+        return null;
+      }
+      case 'content_block_delta': {
+        if (event.delta.type === 'text_delta') {
+          return { type: 'text', delta: event.delta.text };
+        }
+        if (event.delta.type === 'input_json_delta') {
+          // Accumulate tool input JSON chunks
+          this.currentToolInputBuffer += event.delta.partial_json;
+        }
+        return null;
+      }
+      case 'content_block_stop': {
+        // If we have accumulated a tool call, emit it now
+        if (this.currentToolId && this.currentToolName) {
+          let input: unknown = {};
+          try {
+            input = JSON.parse(this.currentToolInputBuffer || '{}');
+          } catch {
+            input = {};
+          }
+          const chunk: StreamChunk = {
             type: 'tool_call',
-            id: tb.id,
-            name: tb.name,
-            input: tb.input,
+            id: this.currentToolId,
+            name: this.currentToolName,
+            input,
           };
+          // Reset accumulation state
+          this.currentToolId = null;
+          this.currentToolName = null;
+          this.currentToolInputBuffer = '';
+          return chunk;
         }
         return null;
       }
       case 'message_delta': {
+        // Only output tokens come in message_delta
         return {
           type: 'usage',
-          inputTokens: event.usage.input_tokens ?? 0,
+          inputTokens: 0,
           outputTokens: event.usage.output_tokens,
         };
       }

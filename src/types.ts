@@ -85,18 +85,13 @@ export interface ToolContext {
   workspaceRoot: string;
 }
 
-// ── Session policy & runtime environment ──
+// ── Security & runtime environment ──
 
-export type ProfileType = 'safe-chat' | 'code-workspace' | 'full-termux-agent';
+export type SecurityMode = 'normal' | 'hardcore';
 
-export interface SessionPolicy {
-  profile: ProfileType;
+export interface SecurityConfig {
+  mode: SecurityMode;
   workspaceRoot: string;
-  dryRunFirst: boolean;
-  bashConfirmation: 'always' | 'batch' | 'never';
-  fileConfirmation: 'always' | 'batch' | 'never';
-  networkConfirmation: 'always' | 'batch' | 'never';
-  peripheralConfirmation: 'always' | 'batch' | 'never';
 }
 
 export interface RuntimeEnvironment {
@@ -158,6 +153,6 @@ export interface AppConfig {
   defaultProvider: string;
   defaultMode: 'chat' | 'agent';
   environment: RuntimeEnvironment;
-  sessionPolicy: SessionPolicy;
+  security: SecurityConfig;
   providers: Record<string, ProviderConfig>;
 }

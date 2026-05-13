@@ -1,6 +1,6 @@
-import type { RuntimeEnvironment, SessionPolicy, ITool } from '../types.js';
+import type { RuntimeEnvironment, SecurityConfig, ITool } from '../types.js';
 import { getEnvironmentPrompt, shouldIncludeEnvironmentPrompt } from './environment.js';
-import { formatSessionPolicy } from './sessionPolicy.js';
+import { formatSecurityConfig } from './sessionPolicy.js';
 
 const BASE_ASSISTANT_INSTRUCTION = `You are a helpful CLI assistant running on Android/Termux.
 Your goal is to help the user with their tasks through the terminal.
@@ -13,14 +13,14 @@ Do not execute destructive operations without explicit user confirmation.`;
  * Layered structure:
  * 1. Base assistant instruction (role, tone, safety)
  * 2. Environment prompt (Termux/Android constraints)
- * 3. Session policy (workspace, confirmation modes)
+ * 3. Security config (workspace, auto-approval rules)
  * 4. User extra context
  *
  * @returns Complete system prompt string
  */
 export function buildPromptContext(params: {
   environment: RuntimeEnvironment;
-  sessionPolicy: SessionPolicy;
+  security: SecurityConfig;
   tools?: ITool[];
   extraContext?: string;
 }): string {
@@ -32,9 +32,9 @@ export function buildPromptContext(params: {
     parts.push(getEnvironmentPrompt(params.environment));
   }
 
-  // Session policy
-  parts.push('\n## Session Policy\n');
-  parts.push(formatSessionPolicy(params.sessionPolicy));
+  // Security config
+  parts.push('\n## Security Configuration\n');
+  parts.push(formatSecurityConfig(params.security));
 
   // Tool descriptions
   if (params.tools && params.tools.length > 0) {
