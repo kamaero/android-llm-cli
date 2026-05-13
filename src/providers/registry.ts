@@ -1,5 +1,6 @@
 import type { IProvider, ProviderConfig } from '../types.js';
 import { AnthropicProvider } from './anthropic.js';
+import { MockProvider } from './mock.js';
 import { OpenAIProvider } from './openai.js';
 
 /**
@@ -16,6 +17,8 @@ export function createProvider(config: ProviderConfig, apiKey: string): IProvide
       );
     case 'openai':
       return new OpenAIProvider(config.type, config.model, apiKey, config.baseUrl);
+    case 'mock':
+      return new MockProvider();
     default:
       throw new TypeError(
         `Unsupported provider type: "${(config as ProviderConfig).type}". ` +

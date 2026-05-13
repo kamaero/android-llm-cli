@@ -140,7 +140,7 @@ queue:
       - npm run build
   - id: T-19
     title: "--mock provider + smoke test docs"
-    status: planned
+    status: done
     assigned_agent: codex
     depends_on: []
     files_allowed:

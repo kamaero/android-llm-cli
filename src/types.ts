@@ -148,7 +148,7 @@ export type AppAction =
 // ── Config (used by zod schema, re-exported from schemas.ts) ──
 
 export interface ProviderConfig {
-  type: 'anthropic' | 'openai';
+  type: 'anthropic' | 'openai' | 'mock';
   apiKey: string;
   model: string;
   baseUrl?: string;

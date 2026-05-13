@@ -62,7 +62,7 @@ const RuntimeEnvironmentSchema = z.object({
 });
 
 const ProviderConfigSchema = z.object({
-  type: z.enum(['anthropic', 'openai']),
+  type: z.enum(['anthropic', 'openai', 'mock']),
   api_key: z.string(),
   model: z.string(),
   base_url: z.string().optional(),
