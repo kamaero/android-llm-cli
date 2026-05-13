@@ -5,12 +5,14 @@ import meow from 'meow';
 
 import { App } from './app.js';
 import { loadConfig } from './storage/config.js';
+import { setupWizard } from './setup.js';
 import type { ConfigType } from './schemas.js';
 
 const cli = meow(
   `
     Usage
       $ a-llmcli
+      $ a-llmcli setup      # Interactive config wizard
 
     Options
       --config  Path to config file
@@ -42,6 +44,16 @@ const cli = meow(
   },
 );
 
+// ── Subcommand: setup ──
+if (cli.input.includes('setup')) {
+  await setupWizard().catch((err) => {
+    console.error('Setup failed:', err);
+    process.exit(1);
+  });
+  process.exit(0);
+}
+
+// ── Normal launch ──
 let config: ConfigType;
 
 if (cli.flags.mock) {
