@@ -29,6 +29,7 @@ import { ToolRegistry } from './tools/registry.js';
 import { Layout } from './ui/Layout.js';
 import { RecoveryPrompt } from './ui/RecoveryPrompt.js';
 import { executeCommand, type CommandContext } from './commands/index.js';
+import { DEFAULT_RETRY_OPTS, withRetry } from './streaming/retry.js';
 
 export type { ConfigType };
 
@@ -166,6 +167,25 @@ function appendAssistantToolCall(messages: Message[], toolCall: ToolCall): Messa
   return nextMessages;
 }
 
+function resetStreamingAssistantMessage(messages: Message[]): Message[] {
+  const nextMessages = [...messages];
+  const lastMessage = nextMessages.at(-1);
+
+  if (lastMessage?.role !== 'assistant') {
+    return nextMessages;
+  }
+
+  nextMessages[nextMessages.length - 1] = {
+    ...lastMessage,
+    content: '',
+    tool_calls: undefined,
+    tokens: undefined,
+    timestamp: Date.now(),
+  };
+
+  return nextMessages;
+}
+
 export function appReducer(state: AppState, action: AppAction, config: ConfigType): AppState {
   switch (action.type) {
     case 'ADD_USER_MESSAGE': {
@@ -182,6 +202,7 @@ export function appReducer(state: AppState, action: AppAction, config: ConfigTyp
         ...state,
         session,
         error: undefined,
+        retryState: undefined,
       };
     }
 
@@ -190,10 +211,34 @@ export function appReducer(state: AppState, action: AppAction, config: ConfigTyp
         ...state,
         status: 'streaming',
         error: undefined,
+        retryState: undefined,
         session: withUpdatedTimestamp({
           ...state.session,
           messages: [...state.session.messages, makeAssistantMessage()],
         }),
+      };
+
+    case 'SET_RETRY':
+      return {
+        ...state,
+        status: 'retrying',
+        error: undefined,
+        retryState: {
+          attempt: action.attempt,
+          maxAttempts: action.maxAttempts,
+        },
+        session: withUpdatedTimestamp({
+          ...state.session,
+          messages: resetStreamingAssistantMessage(state.session.messages),
+        }),
+      };
+
+    case 'RESUME_STREAMING':
+      return {
+        ...state,
+        status: 'streaming',
+        error: undefined,
+        retryState: undefined,
       };
 
     case 'APPEND_TEXT': {
@@ -226,6 +271,7 @@ export function appReducer(state: AppState, action: AppAction, config: ConfigTyp
       return {
         ...state,
         status: 'awaiting-tool-confirm',
+        retryState: undefined,
         pendingToolCall: { call: action.toolCall },
         session: withUpdatedTimestamp({
           ...state.session,
@@ -236,6 +282,7 @@ export function appReducer(state: AppState, action: AppAction, config: ConfigTyp
     case 'SET_TOOL_RESULT':
       return {
         ...state,
+        retryState: undefined,
         pendingToolCall: state.pendingToolCall
           ? { ...state.pendingToolCall, result: action.toolResult }
           : undefined,
@@ -270,15 +317,22 @@ export function appReducer(state: AppState, action: AppAction, config: ConfigTyp
         ...state,
         status: 'idle',
         pendingToolCall: undefined,
+        retryState: undefined,
       };
 
     case 'SET_ERROR':
-      return { ...state, status: 'error', error: action.error };
+      return {
+        ...state,
+        status: 'error',
+        error: action.error,
+        retryState: undefined,
+      };
 
     case 'CONFIRM_TOOL':
       return {
         ...state,
         status: 'idle',
+        retryState: undefined,
         pendingToolCall:
           state.pendingToolCall?.call.id === action.toolCallId ? undefined : state.pendingToolCall,
       };
@@ -287,6 +341,7 @@ export function appReducer(state: AppState, action: AppAction, config: ConfigTyp
       return {
         ...state,
         status: 'idle',
+        retryState: undefined,
         pendingToolCall:
           state.pendingToolCall?.call.id === action.toolCallId ? undefined : state.pendingToolCall,
       };
@@ -296,6 +351,7 @@ export function appReducer(state: AppState, action: AppAction, config: ConfigTyp
         ...state,
         status: 'idle',
         error: undefined,
+        retryState: undefined,
         pendingToolCall: undefined,
         session: withUpdatedTimestamp({ ...state.session, messages: [] }),
       };
@@ -349,6 +405,7 @@ export function App({ config, deps }: AppProps) {
     session: makeSession(config),
     status: 'idle',
     pendingToolCall: undefined,
+    retryState: undefined,
   };
 
   const [state, setState] = useReducer(
@@ -432,12 +489,36 @@ export function App({ config, deps }: AppProps) {
       dispatch({ type: 'START_STREAMING' });
 
       try {
-        for await (const chunk of provider.stream(session.messages, { systemPrompt, tools })) {
-          runtimeDeps.appendWalEntry(session.id, chunk);
-          const shouldPause = handleStreamChunk(chunk, dispatch);
-          if (shouldPause) {
-            return;
-          }
+        let streamAttempt = 0;
+        let shouldPause = false;
+
+        await withRetry(
+          async () => {
+            if (streamAttempt > 0) {
+              dispatch({ type: 'RESUME_STREAMING' });
+            }
+            streamAttempt += 1;
+
+            for await (const chunk of provider.stream(session.messages, { systemPrompt, tools })) {
+              runtimeDeps.appendWalEntry(session.id, chunk);
+              shouldPause = handleStreamChunk(chunk, dispatch);
+              if (shouldPause) {
+                return;
+              }
+            }
+          },
+          DEFAULT_RETRY_OPTS,
+          (attempt, error) => {
+            dispatch({
+              type: 'SET_RETRY',
+              attempt,
+              maxAttempts: DEFAULT_RETRY_OPTS.maxAttempts,
+            });
+          },
+        );
+
+        if (shouldPause) {
+          return;
         }
 
         const finalState = dispatch({ type: 'STOP_STREAMING' });

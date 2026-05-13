@@ -58,6 +58,18 @@ describe('StatusBar', () => {
     expect(lastFrame()).toContain('streaming');
   });
 
+  it('shows retry status when status is retrying', () => {
+    const { lastFrame } = render(
+      <StatusBar
+        state={makeState({
+          status: 'retrying',
+          retryState: { attempt: 1, maxAttempts: 3 },
+        })}
+      />,
+    );
+    expect(lastFrame()).toContain('retrying (1/3)');
+  });
+
   it('shows error message when status is error', () => {
     const { lastFrame } = render(
       <StatusBar

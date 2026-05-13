@@ -7,10 +7,12 @@ interface StatusBarProps {
 }
 
 export function StatusBar({ state }: StatusBarProps) {
-  const { session, status } = state;
+  const { session, status, retryState } = state;
 
   const isStreaming = status === 'streaming';
-  const barColor = isStreaming ? 'yellow' : 'green';
+  const isRetrying = status === 'retrying';
+  const isError = status === 'error';
+  const barColor = isError ? 'red' : isStreaming || isRetrying ? 'yellow' : 'green';
 
   const totalTokens = session.messages.reduce(
     (sum, m) => sum + (m.tokens ?? 0),
@@ -34,7 +36,13 @@ export function StatusBar({ state }: StatusBarProps) {
           <Text color="yellow">streaming…</Text>
         </>
       )}
-      {status === 'error' && state.error && (
+      {isRetrying && retryState && (
+        <>
+          <Text dimColor> │ </Text>
+          <Text color="yellow">retrying ({retryState.attempt}/{retryState.maxAttempts})…</Text>
+        </>
+      )}
+      {isError && state.error && (
         <>
           <Text dimColor> │ </Text>
           <Text color="red">{state.error}</Text>
