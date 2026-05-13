@@ -61,11 +61,9 @@ queue:
     branch: codex/T-12-bash-tool
   - id: T-13
     title: read_file + write_file tools
-    status: running
+    status: done
     assigned_agent: codex
     branch: codex/T-13-file-tools
-    worktree: /root/projects/worktrees/codex-T-13-file-tools
-    depends_on: []
     doc_refs:
       - /root/vault/Hermes_memory/termux_aicli/03-implementation-plan.md
     files_allowed:
@@ -79,10 +77,9 @@ queue:
       - npm run build
   - id: T-14
     title: Agent loop
-    status: running
+    status: done
     assigned_agent: claude
     branch: claude/T-14-agent-loop
-    worktree: /root/projects/worktrees/claude-T-14-agent-loop
     depends_on:
       - T-11
       - T-12
