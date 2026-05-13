@@ -110,6 +110,7 @@ export interface AppState {
   pendingToolCall: PendingToolCall | undefined;
   error?: string;
   retryState?: RetryState;
+  securityMode: SecurityMode;
 }
 
 export interface PendingToolCall {
@@ -138,6 +139,7 @@ export type AppAction =
   | { type: 'RESET_MESSAGES' }
   | { type: 'SET_MODEL'; model: string }
   | { type: 'SET_MODE'; mode: 'chat' | 'agent' }
+  | { type: 'SET_SECURITY_MODE'; mode: SecurityMode }
   | { type: 'ADD_COMMAND_OUTPUT'; content: string };
 
 // ── Config (used by zod schema, re-exported from schemas.ts) ──

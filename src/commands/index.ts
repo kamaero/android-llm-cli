@@ -4,6 +4,7 @@ import { clearCommand } from './clear.js';
 import { helpCommand } from './help.js';
 import { modelCommand } from './model.js';
 import { modeCommand } from './mode.js';
+import { securityCommand } from './security.js';
 
 export interface CommandContext {
   state: AppState;
@@ -18,6 +19,7 @@ const COMMANDS: Record<string, CommandHandler> = {
   help: helpCommand,
   model: modelCommand,
   mode: modeCommand,
+  security: securityCommand,
 };
 
 export function parseCommand(input: string): { name: string; args: string[] } | null {

@@ -30,6 +30,8 @@ function StatusBarInner({ state }: StatusBarProps) {
       <Text dimColor> │ </Text>
       <Text color="cyan">{session.mode}</Text>
       <Text dimColor> │ </Text>
+      <Text color={state.securityMode === 'hardcore' ? 'red' : 'green'}>{state.securityMode}</Text>
+      <Text dimColor> │ </Text>
       <Text dimColor>tokens: {totalTokens}</Text>
       {isStreaming && (
         <>
@@ -65,6 +67,7 @@ export const StatusBar = React.memo(StatusBarInner, (prev, next) => {
   if (a.session.provider !== b.session.provider) return false;
   if (a.session.model !== b.session.model) return false;
   if (a.session.mode !== b.session.mode) return false;
+  if (a.securityMode !== b.securityMode) return false;
   if (a.retryState?.attempt !== b.retryState?.attempt) return false;
   // Efficient token comparison: check message count and last message tokens
   // (during streaming, only the last message changes)

@@ -6,8 +6,9 @@ import type {
   IProvider,
   Message,
   RuntimeEnvironment,
-  Session,
   SecurityConfig,
+  SecurityMode,
+  Session,
   StreamChunk,
   ToolCall,
   ToolResult,
@@ -363,6 +364,12 @@ export function appReducer(state: AppState, action: AppAction, config: ConfigTyp
         session: withUpdatedTimestamp({ ...state.session, mode: action.mode }),
       };
 
+    case 'SET_SECURITY_MODE':
+      return {
+        ...state,
+        securityMode: action.mode,
+      };
+
     case 'ADD_COMMAND_OUTPUT': {
       const msg: Message = {
         id: nanoid(),
@@ -404,6 +411,7 @@ export function App({ config, deps }: AppProps) {
       status: 'idle' as const,
       pendingToolCall: undefined,
       retryState: undefined,
+      securityMode: cfg.security.mode,
     }),
   );
   const stateRef = useRef(state);
@@ -454,7 +462,11 @@ export function App({ config, deps }: AppProps) {
   const fetchResponse = useCallback(
     async (session: Session, iteration = 0): Promise<void> => {
       const provider = getProvider();
-      const security = mapSecurityConfig(config);
+      const baseSecurity = mapSecurityConfig(config);
+      const security: SecurityConfig = {
+        ...baseSecurity,
+        mode: stateRef.current.securityMode,
+      };
       const systemPrompt = buildPromptContext({
         environment: mapEnvironment(config),
         security,
