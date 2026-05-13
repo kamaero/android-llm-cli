@@ -1,0 +1,15 @@
+codex:
+  status: idle
+  current_task: null
+  session_started_at: null
+  max_runtime_hours: 5
+claude:
+  status: idle
+  current_task: null
+  session_started_at: null
+  max_runtime_hours: 5
+deepseek:
+  status: idle
+  current_task: null
+  session_started_at: null
+  max_runtime_hours: 5

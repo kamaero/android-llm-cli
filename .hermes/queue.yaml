@@ -1,0 +1,21 @@
+queue:
+  - id: T-01
+    title: Scaffolding & toolchain
+    status: pending
+    assigned_agent: codex
+    branch: codex/T-01-scaffolding
+    depends_on: []
+    doc_refs:
+      - /root/vault/Hermes_memory/termux_aicli/03-implementation-plan.md
+      - /root/vault/Hermes_memory/termux_aicli/q6-commands.md
+    files_allowed:
+      - package.json
+      - tsconfig.json
+      - tsconfig.build.json
+      - vitest.config.ts
+      - src/index.ts
+    acceptance:
+      - npm run dev -- --help
+      - npm run build
+      - node dist/index.js --version
+      - npm test
