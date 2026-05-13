@@ -264,6 +264,32 @@ export function appReducer(state: AppState, action: AppAction, config: ConfigTyp
       };
     }
 
+    case 'APPEND_REASONING': {
+      const messages = [...state.session.messages];
+      const lastMessage = messages.at(-1);
+
+      if (lastMessage?.role === 'assistant') {
+        messages[messages.length - 1] = {
+          ...lastMessage,
+          reasoningContent: (lastMessage.reasoningContent ?? '') + action.delta,
+          timestamp: Date.now(),
+        };
+      } else {
+        messages.push({
+          ...makeAssistantMessage(),
+          reasoningContent: action.delta,
+        });
+      }
+
+      return {
+        ...state,
+        session: withUpdatedTimestamp({
+          ...state.session,
+          messages,
+        }),
+      };
+    }
+
     case 'SET_TOOL_CALL':
       return {
         ...state,
@@ -690,6 +716,9 @@ function handleStreamChunk(
   switch (chunk.type) {
     case 'text':
       dispatch({ type: 'APPEND_TEXT', delta: chunk.delta });
+      return false;
+    case 'reasoning':
+      dispatch({ type: 'APPEND_REASONING', delta: chunk.delta });
       return false;
     case 'tool_call':
       dispatch({

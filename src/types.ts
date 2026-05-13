@@ -4,6 +4,7 @@ export interface Message {
   id: string;                           // nanoid
   role: 'user' | 'assistant' | 'tool';
   content: string;
+  reasoningContent?: string;            // DeepSeek thinking/reasoning (passed back to API)
   tool_calls?: ToolCall[];              // only for role=assistant in agent mode
   tool_result?: ToolResult;             // only for role=tool
   timestamp: number;                    // Unix ms
@@ -37,6 +38,7 @@ export interface Session {
 
 export type StreamChunk =
   | { type: 'text'; delta: string }
+  | { type: 'reasoning'; delta: string }   // DeepSeek thinking content
   | { type: 'tool_call'; id: string; name: string; input: unknown }
   | { type: 'usage'; inputTokens: number; outputTokens: number }
   | { type: 'done' };
@@ -129,6 +131,7 @@ export type AppAction =
   | { type: 'SET_RETRY'; attempt: number; maxAttempts: number }
   | { type: 'RESUME_STREAMING' }
   | { type: 'APPEND_TEXT'; delta: string }
+  | { type: 'APPEND_REASONING'; delta: string }
   | { type: 'SET_TOOL_CALL'; toolCall: ToolCall }
   | { type: 'SET_TOOL_RESULT'; toolResult: ToolResult }
   | { type: 'SET_USAGE'; inputTokens: number; outputTokens: number }

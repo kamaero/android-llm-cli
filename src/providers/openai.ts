@@ -46,7 +46,7 @@ function toOpenAIMessages(
         content: msg.tool_result.output,
       });
     } else if (msg.role === 'assistant' && msg.tool_calls && msg.tool_calls.length > 0) {
-      result.push({
+      const entry: Record<string, unknown> = {
         role: 'assistant',
         content: msg.content || null,
         tool_calls: msg.tool_calls.map((tc) => ({
@@ -57,7 +57,20 @@ function toOpenAIMessages(
             arguments: JSON.stringify(tc.input),
           },
         })),
-      });
+      };
+      if (msg.reasoningContent) {
+        entry.reasoning_content = msg.reasoningContent;
+      }
+      result.push(entry as unknown as OpenAI.Chat.Completions.ChatCompletionMessageParam);
+    } else if (msg.role === 'assistant' && msg.content) {
+      const entry: Record<string, unknown> = {
+        role: 'assistant',
+        content: msg.content,
+      };
+      if (msg.reasoningContent) {
+        entry.reasoning_content = msg.reasoningContent;
+      }
+      result.push(entry as unknown as OpenAI.Chat.Completions.ChatCompletionMessageParam);
     } else {
       result.push({
         role: msg.role as 'user' | 'assistant',
@@ -73,14 +86,12 @@ export class OpenAIProvider implements IProvider {
   readonly name: string;
   readonly model: string;
   readonly capabilities: ProviderCapabilities;
-  private disableReasoning: boolean;
 
   private client: OpenAI;
 
   constructor(name: string, model: string, apiKey: string, baseUrl?: string) {
     this.name = name;
     this.model = model;
-    this.disableReasoning = !!baseUrl && baseUrl.includes('deepseek');
     this.capabilities = {
       streaming: true,
       tools: true,
@@ -101,7 +112,6 @@ export class OpenAIProvider implements IProvider {
         tools: options?.tools ? toOpenAITools(options.tools) : undefined,
         stream: true,
         stream_options: { include_usage: true },
-        ...(this.disableReasoning ? { thinking: { type: null } } : {}),
       } as OpenAI.Chat.Completions.ChatCompletionCreateParamsStreaming,
       {
         signal: options?.signal,
@@ -157,6 +167,12 @@ export class OpenAIProvider implements IProvider {
       // Text content delta
       if (delta.content) {
         results.push({ type: 'text', delta: delta.content });
+      }
+
+      // DeepSeek reasoning/thinking content
+      const rawDelta = delta as Record<string, unknown>;
+      if (rawDelta.reasoning_content && typeof rawDelta.reasoning_content === 'string') {
+        results.push({ type: 'reasoning', delta: rawDelta.reasoning_content });
       }
 
       // Tool calls

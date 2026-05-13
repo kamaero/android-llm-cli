@@ -18,6 +18,7 @@ export const MessageSchema = z.object({
   id: z.string(),
   role: z.enum(['user', 'assistant', 'tool']),
   content: z.string(),
+  reasoning_content: z.string().optional(),
   tool_calls: z.array(ToolCallSchema).optional(),
   tool_result: ToolResultSchema.optional(),
   timestamp: z.number(),

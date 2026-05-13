@@ -109,6 +109,9 @@ export async function agentLoop(params: AgentLoopParams): Promise<void> {
               case 'text':
                 dispatch({ type: 'APPEND_TEXT', delta: chunk.delta });
                 break;
+              case 'reasoning':
+                dispatch({ type: 'APPEND_REASONING', delta: chunk.delta });
+                break;
               case 'tool_call':
                 toolCall = {
                   id: chunk.id,
