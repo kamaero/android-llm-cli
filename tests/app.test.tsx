@@ -63,6 +63,41 @@ describe('appReducer', () => {
     expect(lastMsg?.content).toBe('');
   });
 
+  it('SET_RETRY sets retrying status and clears the in-flight assistant draft', () => {
+    const session = makeSession({
+      messages: [{ id: 'a1', role: 'assistant', content: 'partial', timestamp: 0, tokens: 9 }],
+    });
+    const state = makeState({ session, status: 'streaming' });
+
+    const next = appReducer(
+      state,
+      { type: 'SET_RETRY', attempt: 1, maxAttempts: 3 },
+      makeConfig(),
+    );
+
+    expect(next.status).toBe('retrying');
+    expect(next.retryState).toEqual({ attempt: 1, maxAttempts: 3 });
+    expect(next.session.messages.at(-1)?.content).toBe('');
+    expect(next.session.messages.at(-1)?.tokens).toBeUndefined();
+  });
+
+  it('RESUME_STREAMING returns to streaming without appending a new assistant message', () => {
+    const session = makeSession({
+      messages: [{ id: 'a1', role: 'assistant', content: '', timestamp: 0 }],
+    });
+    const state = makeState({
+      session,
+      status: 'retrying',
+      retryState: { attempt: 1, maxAttempts: 3 },
+    });
+
+    const next = appReducer(state, { type: 'RESUME_STREAMING' }, makeConfig());
+
+    expect(next.status).toBe('streaming');
+    expect(next.retryState).toBeUndefined();
+    expect(next.session.messages).toHaveLength(1);
+  });
+
   it('APPEND_TEXT appends to assistant message', () => {
     const session = makeSession({ messages: [{ id: 'a1', role: 'assistant', content: 'Hi', timestamp: 0 }] });
     const state = makeState({ session, status: 'streaming' });

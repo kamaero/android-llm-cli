@@ -107,13 +107,14 @@ export interface RuntimeEnvironment {
 
 // ── App state (Ink reducer) ──
 
-export type AppStatus = 'idle' | 'streaming' | 'awaiting-tool-confirm' | 'error';
+export type AppStatus = 'idle' | 'streaming' | 'retrying' | 'awaiting-tool-confirm' | 'error';
 
 export interface AppState {
   session: Session;
   status: AppStatus;
   pendingToolCall: PendingToolCall | undefined;
   error?: string;
+  retryState?: RetryState;
 }
 
 export interface PendingToolCall {
@@ -121,9 +122,16 @@ export interface PendingToolCall {
   result?: ToolResult;
 }
 
+export interface RetryState {
+  attempt: number;
+  maxAttempts: number;
+}
+
 export type AppAction =
   | { type: 'ADD_USER_MESSAGE'; message: Message }
   | { type: 'START_STREAMING' }
+  | { type: 'SET_RETRY'; attempt: number; maxAttempts: number }
+  | { type: 'RESUME_STREAMING' }
   | { type: 'APPEND_TEXT'; delta: string }
   | { type: 'SET_TOOL_CALL'; toolCall: ToolCall }
   | { type: 'SET_TOOL_RESULT'; toolResult: ToolResult }

@@ -115,6 +115,28 @@ function makeDispatch(initial: AppState): {
         };
         break;
       }
+      case 'SET_RETRY': {
+        const messages = [...state.session.messages];
+        const last = messages.at(-1);
+        if (last?.role === 'assistant') {
+          messages[messages.length - 1] = {
+            ...last,
+            content: '',
+            tokens: undefined,
+            tool_calls: undefined,
+          };
+        }
+        state = {
+          ...state,
+          status: 'retrying',
+          retryState: { attempt: action.attempt, maxAttempts: action.maxAttempts },
+          session: { ...state.session, messages },
+        };
+        break;
+      }
+      case 'RESUME_STREAMING':
+        state = { ...state, status: 'streaming', retryState: undefined };
+        break;
       case 'APPEND_TEXT': {
         const messages = [...state.session.messages];
         const last = messages.at(-1);
@@ -401,7 +423,12 @@ describe('agentLoop', () => {
 
     await agentLoop({
       session,
-      provider: makeProvider(failingStream()),
+      provider: {
+        name: 'test',
+        model: 'test-model',
+        capabilities: { streaming: true, tools: true, vision: false, systemPrompt: 'parameter' },
+        stream: vi.fn(() => failingStream()),
+      },
       toolRegistry: new ToolRegistry(),
       systemPrompt: '',
       dispatch,
@@ -410,6 +437,7 @@ describe('agentLoop', () => {
       signal: new AbortController().signal,
     });
 
+    expect(actions.filter((a) => a.type === 'SET_RETRY')).toHaveLength(2);
     const errAction = actions.find((a) => a.type === 'SET_ERROR');
     expect(errAction).toMatchObject({ type: 'SET_ERROR', error: 'network error' });
   });

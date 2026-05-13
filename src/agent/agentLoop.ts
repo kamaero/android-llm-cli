@@ -10,6 +10,7 @@ import type {
   ToolResult,
 } from '../types.js';
 import type { ToolRegistry } from '../tools/registry.js';
+import { DEFAULT_RETRY_OPTS, withRetry } from '../streaming/retry.js';
 
 export interface AgentLoopParams {
   session: Session;
@@ -90,34 +91,53 @@ export async function agentLoop(params: AgentLoopParams): Promise<void> {
     let toolCall: ToolCall | null = null;
 
     try {
-      for await (const chunk of provider.stream(session.messages, { systemPrompt, tools, signal })) {
-        if (signal.aborted) break;
+      let streamAttempt = 0;
 
-        switch (chunk.type) {
-          case 'text':
-            dispatch({ type: 'APPEND_TEXT', delta: chunk.delta });
-            break;
-          case 'tool_call':
-            toolCall = {
-              id: chunk.id,
-              name: chunk.name,
-              input: normalizeToolInput(chunk.input),
-            };
-            dispatch({ type: 'SET_TOOL_CALL', toolCall });
-            break;
-          case 'usage':
-            dispatch({
-              type: 'SET_USAGE',
-              inputTokens: chunk.inputTokens,
-              outputTokens: chunk.outputTokens,
-            });
-            break;
-          case 'done':
-            break;
-        }
+      await withRetry(
+        async () => {
+          if (streamAttempt > 0) {
+            dispatch({ type: 'RESUME_STREAMING' });
+          }
+          streamAttempt += 1;
 
-        if (toolCall) break;
-      }
+          for await (const chunk of provider.stream(session.messages, { systemPrompt, tools, signal })) {
+            if (signal.aborted) break;
+
+            switch (chunk.type) {
+              case 'text':
+                dispatch({ type: 'APPEND_TEXT', delta: chunk.delta });
+                break;
+              case 'tool_call':
+                toolCall = {
+                  id: chunk.id,
+                  name: chunk.name,
+                  input: normalizeToolInput(chunk.input),
+                };
+                dispatch({ type: 'SET_TOOL_CALL', toolCall });
+                break;
+              case 'usage':
+                dispatch({
+                  type: 'SET_USAGE',
+                  inputTokens: chunk.inputTokens,
+                  outputTokens: chunk.outputTokens,
+                });
+                break;
+              case 'done':
+                break;
+            }
+
+            if (toolCall) break;
+          }
+        },
+        DEFAULT_RETRY_OPTS,
+        (attempt) => {
+          dispatch({
+            type: 'SET_RETRY',
+            attempt,
+            maxAttempts: DEFAULT_RETRY_OPTS.maxAttempts,
+          });
+        },
+      );
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       dispatch({ type: 'SET_ERROR', error: message });
