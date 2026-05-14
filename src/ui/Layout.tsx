@@ -6,6 +6,7 @@ import { EnhancedStatusBar, useStatusBarState } from './EnhancedStatusBar.js';
 import { InputBox } from './EnhancedInputBox.js';
 import { ToolConfirmBox } from './ToolConfirmBox.js';
 import { NotificationProvider, NotificationToast } from './NotificationToast.js';
+import { QuickActions } from './QuickActions.js';
 
 interface LayoutProps {
   state: AppState;
@@ -30,6 +31,7 @@ export function Layout({ state, dispatch, onCommand }: LayoutProps) {
         ) : (
           <InputBox dispatch={dispatch} onCommand={onCommand} isActive={state.status !== 'awaiting-tool-confirm'} />
         )}
+        <QuickActions messages={state.session.messages} />
         <NotificationToast />
       </Box>
     </NotificationProvider>
