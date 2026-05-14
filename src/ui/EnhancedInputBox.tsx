@@ -1,8 +1,9 @@
 import React, { memo, useState, useCallback, useMemo, useRef, useEffect } from 'react';
-import { Box, Text, useInput, useApp, useStdout } from 'ink';
+import { Box, Text, useInput, useApp } from 'ink';
 import { nanoid } from 'nanoid';
 import type { AppAction } from '../types.js';
 import { useTheme } from '../theme.js';
+import { useTerminalSize } from './ResponsiveLayout.js';
 
 interface InputBoxProps {
   dispatch: React.Dispatch<AppAction>;
@@ -40,7 +41,7 @@ export const EnhancedInputBox = memo(function EnhancedInputBox({
   placeholder = 'Type a message… (Tab: autocomplete, ↑↓: history, Shift+Enter: new line)',
 }: InputBoxProps) {
   const theme = useTheme();
-  const { stdout } = useStdout();
+  const { width } = useTerminalSize();
   const { exit } = useApp();
 
   // State management
@@ -392,6 +393,12 @@ export const EnhancedInputBox = memo(function EnhancedInputBox({
     );
   };
 
+  // Memoized horizontal lines to prevent flickering during streaming
+  const horizontalLine = useMemo(() => {
+    const lineWidth = Math.max(width || 80, 40); // Ensure minimum width
+    return '─'.repeat(lineWidth);
+  }, [width]);
+
   return (
     <Box flexDirection="column">
       {/* Autocomplete suggestions */}
@@ -399,7 +406,7 @@ export const EnhancedInputBox = memo(function EnhancedInputBox({
 
       {/* Top orange line */}
       <Box width="100%">
-        <Text color={theme.inputLine}>{'─'.repeat(stdout.columns || 80)}</Text>
+        <Text color={theme.inputLine}>{horizontalLine}</Text>
       </Box>
 
       {/* Main input area */}
@@ -423,7 +430,7 @@ export const EnhancedInputBox = memo(function EnhancedInputBox({
 
       {/* Bottom orange line */}
       <Box width="100%">
-        <Text color={theme.inputLine}>{'─'.repeat(stdout.columns || 80)}</Text>
+        <Text color={theme.inputLine}>{horizontalLine}</Text>
       </Box>
     </Box>
   );
