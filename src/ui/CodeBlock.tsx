@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Box, Text } from 'ink';
+import { useTheme } from '../theme.js';
 
 export interface CodeBlockProps {
   code: string;
@@ -17,13 +18,8 @@ const CLASS_TO_COLOR: Record<string, string> = {
   'hljs-title': 'blue',
 };
 
-// Tracks which language modules have been registered so we skip re-importing.
 const loadedLangs = new Set<string>();
 
-/**
- * Parse highlight.js HTML output into a flat token stream.
- * Tracks a class stack to handle nested <span> elements correctly.
- */
 function htmlToTokens(html: string): Token[] {
   const tokens: Token[] = [];
   const classStack: string[] = [];
@@ -50,7 +46,6 @@ function htmlToTokens(html: string): Token[] {
   return tokens;
 }
 
-/** Split a token stream at newlines so we can render each line as a row. */
 function splitIntoLines(tokens: Token[]): Token[][] {
   const lines: Token[][] = [[]];
   for (const token of tokens) {
@@ -61,12 +56,12 @@ function splitIntoLines(tokens: Token[]): Token[][] {
       if (part) lines[lines.length - 1]!.push({ text: part, color: token.color });
     }
   }
-  // Drop a trailing empty line that highlight.js sometimes emits.
   if (lines[lines.length - 1]!.length === 0 && lines.length > 1) lines.pop();
   return lines;
 }
 
 export function CodeBlock({ code, lang }: CodeBlockProps) {
+  const theme = useTheme();
   const [lines, setLines] = useState<Token[][] | null>(null);
 
   useEffect(() => {
@@ -109,11 +104,11 @@ export function CodeBlock({ code, lang }: CodeBlockProps) {
   const plainLines = code.split('\n');
 
   return (
-    <Box borderStyle="single" borderColor="gray" flexDirection="column" paddingX={1}>
-      {lang ? <Text bold>{lang}</Text> : null}
+    <Box borderStyle="single" borderColor={theme.code} flexDirection="column" paddingX={1}>
+      {lang ? <Text bold color={theme.accent}>{lang}</Text> : null}
       {lines === null
         ? plainLines.map((line, i) => (
-            <Text key={i} color="cyan">{line}</Text>
+            <Text key={i} color={theme.accent}>{line}</Text>
           ))
         : lines.map((lineTokens, i) => (
             <Text key={i}>

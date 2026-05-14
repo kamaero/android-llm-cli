@@ -17,6 +17,7 @@ import { agentLoop, createReasoningBatcher, executeToolCall } from './agent/agen
 import type { ConfigType } from './schemas.js';
 import { createProvider } from './providers/registry.js';
 import { buildPromptContext } from './prompts/buildPromptContext.js';
+import { ThemeContext, THEMES } from './theme.js';
 import {
   appendWalEntry,
   deleteWalFile,
@@ -744,7 +745,12 @@ export function App({ config, deps }: AppProps) {
     );
   }
 
-  return <Layout state={state} dispatch={boundDispatch} onCommand={handleCommand} />;
+  const theme = THEMES[config.theme ?? 'default'] ?? THEMES.default;
+  return (
+    <ThemeContext.Provider value={theme}>
+      <Layout state={state} dispatch={boundDispatch} onCommand={handleCommand} />
+    </ThemeContext.Provider>
+  );
 }
 
 function normalizeToolInput(input: unknown): Record<string, unknown> {

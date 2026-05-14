@@ -6,6 +6,7 @@ import { modelCommand } from './model.js';
 import { modeCommand } from './mode.js';
 import { searchCommand } from './search.js';
 import { securityCommand } from './security.js';
+import { themeCommand } from './theme.js';
 
 export interface CommandContext {
   state: AppState;
@@ -22,6 +23,7 @@ const COMMANDS: Record<string, CommandHandler> = {
   mode: modeCommand,
   search: searchCommand,
   security: securityCommand,
+  theme: themeCommand,
 };
 
 export function parseCommand(input: string): { name: string; args: string[] } | null {

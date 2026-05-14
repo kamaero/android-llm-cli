@@ -2,6 +2,7 @@ import React from 'react';
 import { Box, Text } from 'ink';
 import type { Message } from '../types.js';
 import { CodeBlock } from './CodeBlock.js';
+import { useTheme } from '../theme.js';
 
 // ── Inline markdown ──────────────────────────────────────────────────────────
 
@@ -42,6 +43,7 @@ export function parseInline(line: string): Segment[] {
 }
 
 function InlineText({ line }: { line: string }) {
+  const theme = useTheme();
   const segments = parseInline(line);
   return (
     <Text>
@@ -50,7 +52,7 @@ function InlineText({ line }: { line: string }) {
           key={i}
           bold={seg.bold}
           italic={seg.italic}
-          color={seg.code ? 'cyan' : undefined}
+          color={seg.code ? theme.code : undefined}
         >
           {seg.text}
         </Text>
@@ -62,6 +64,7 @@ function InlineText({ line }: { line: string }) {
 // ── Block-level markdown renderer ────────────────────────────────────────────
 
 function MarkdownContent({ content }: { content: string }) {
+  const theme = useTheme();
   const lines = content.split('\n');
   const blocks: React.ReactNode[] = [];
   let i = 0;
@@ -83,14 +86,14 @@ function MarkdownContent({ content }: { content: string }) {
     } else if (/^#{1,3} /.test(line)) {
       const level = (line.match(/^(#+) /)?.[1].length) ?? 1;
       const text = line.replace(/^#+\s/, '');
-      const headingColor = level === 1 ? 'yellow' : level === 2 ? 'green' : 'cyan';
+      const headingColor = level === 1 ? theme.heading1 : level === 2 ? theme.heading2 : theme.heading3;
       blocks.push(
         <Text key={`h-${i}`} bold color={headingColor}>{text}</Text>,
       );
     } else if (/^[-*] /.test(line)) {
       blocks.push(
         <Box key={`li-${i}`}>
-          <Text color="yellow">• </Text>
+          <Text color={theme.bullet}>• </Text>
           <InlineText line={line.slice(2)} />
         </Box>,
       );
@@ -99,7 +102,7 @@ function MarkdownContent({ content }: { content: string }) {
       const text = line.replace(/^\d+\. /, '');
       blocks.push(
         <Box key={`ol-${i}`}>
-          <Text color="yellow">{num}. </Text>
+          <Text color={theme.bullet}>{num}. </Text>
           <InlineText line={text} />
         </Box>,
       );
@@ -122,12 +125,13 @@ interface MessageItemProps {
 }
 
 function MessageItemInner({ message }: MessageItemProps) {
+  const theme = useTheme();
   const { role, content, tool_result, tool_calls } = message;
 
   if (role === 'user') {
     return (
       <Box flexDirection="column" marginBottom={1}>
-        <Text bold color="blue">You</Text>
+        <Text bold color={theme.user}>You</Text>
         <Box paddingLeft={2}>
           <Text>{content}</Text>
         </Box>
@@ -142,13 +146,13 @@ function MessageItemInner({ message }: MessageItemProps) {
         flexDirection="column"
         marginBottom={1}
         borderStyle="round"
-        borderColor={isError ? 'red' : 'gray'}
+        borderColor={isError ? theme.error : theme.toolBorder}
         paddingX={1}
       >
-        <Text bold color={isError ? 'red' : 'magenta'}>
+        <Text bold color={isError ? theme.error : theme.tool}>
           tool-result
         </Text>
-        <Text color={isError ? 'red' : undefined}>
+        <Text color={isError ? theme.error : undefined}>
           {tool_result?.output ?? content}
         </Text>
       </Box>
@@ -158,19 +162,19 @@ function MessageItemInner({ message }: MessageItemProps) {
   // assistant
   return (
     <Box flexDirection="column" marginBottom={1}>
-      <Text bold color="green">Assistant</Text>
+      <Text bold color={theme.assistant}>Assistant</Text>
       <Box paddingLeft={2} flexDirection="column">
         <MarkdownContent content={content} />
         {tool_calls?.map((tc) => (
           <Box
             key={tc.id}
             borderStyle="round"
-            borderColor="cyan"
+            borderColor={theme.accent}
             paddingX={1}
             marginTop={1}
             flexDirection="column"
           >
-            <Text bold color="cyan">⚡ {tc.name}</Text>
+            <Text bold color={theme.accent}>⚡ {tc.name}</Text>
             <Text dimColor>{JSON.stringify(tc.input, null, 2)}</Text>
           </Box>
         ))}

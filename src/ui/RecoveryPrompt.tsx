@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Box, Text, useInput } from 'ink';
 import type { WalScanEntry } from '../storage/session.js';
+import { useTheme } from '../theme.js';
 
 interface RecoveryPromptProps {
   orphans: WalScanEntry[];
@@ -15,6 +16,7 @@ export function RecoveryPrompt({
   onDiscardAll,
   onDone,
 }: RecoveryPromptProps) {
+  const theme = useTheme();
   const [busyLabel, setBusyLabel] = useState<string | null>(null);
 
   useInput((input) => {
@@ -52,7 +54,7 @@ export function RecoveryPrompt({
 
   return (
     <Box flexDirection="column" width="100%" paddingX={1}>
-      <Text bold color="yellow">
+      <Text bold color={theme.warning}>
         Recovery available
       </Text>
       <Text>

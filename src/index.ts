@@ -71,6 +71,7 @@ if (cli.flags.mock) {
     providers: {
       mock: { type: 'mock' as const, api_key: '', model: 'mock-model' },
     },
+    theme: 'default',
   } as ConfigType;
 } else {
   config = loadConfig(cli.flags.config);

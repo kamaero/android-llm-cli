@@ -73,6 +73,7 @@ export const ConfigSchema = z.object({
       api_key: z.string().optional(),
     }).optional(),
   }).optional(),
+  theme: z.string().default('default'),
 });
 
 export type ConfigType = z.infer<typeof ConfigSchema>;
