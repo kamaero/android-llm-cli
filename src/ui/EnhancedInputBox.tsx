@@ -1,5 +1,5 @@
 import React, { memo, useState, useCallback, useMemo, useRef, useEffect } from 'react';
-import { Box, Text, useInput, useApp } from 'ink';
+import { Box, Text, useInput, useApp, useStdout } from 'ink';
 import { nanoid } from 'nanoid';
 import type { AppAction } from '../types.js';
 import { useTheme } from '../theme.js';
@@ -40,6 +40,7 @@ export const EnhancedInputBox = memo(function EnhancedInputBox({
   placeholder = 'Type a message… (Tab: autocomplete, ↑↓: history, Shift+Enter: new line)',
 }: InputBoxProps) {
   const theme = useTheme();
+  const { stdout } = useStdout();
   const { exit } = useApp();
 
   // State management
@@ -396,13 +397,13 @@ export const EnhancedInputBox = memo(function EnhancedInputBox({
       {/* Autocomplete suggestions */}
       {renderAutocomplete()}
 
+      {/* Top orange line */}
+      <Box width="100%">
+        <Text color={theme.inputLine}>{'─'.repeat(stdout.columns || 80)}</Text>
+      </Box>
+
       {/* Main input area */}
-      <Box
-        borderStyle="single"
-        borderColor={isMultiline ? theme.accent : undefined}
-        paddingX={1}
-        flexDirection="column"
-      >
+      <Box paddingX={1} flexDirection="column">
         <Box flexDirection="row">
           <Text bold color="blue">
             {'> '}
@@ -418,6 +419,11 @@ export const EnhancedInputBox = memo(function EnhancedInputBox({
             Line {cursor.row + 1}/{lines.length} • Shift+Enter: new line • Enter: send
           </Text>
         )}
+      </Box>
+
+      {/* Bottom orange line */}
+      <Box width="100%">
+        <Text color={theme.inputLine}>{'─'.repeat(stdout.columns || 80)}</Text>
       </Box>
     </Box>
   );

@@ -33,6 +33,8 @@ export interface Theme {
   success: string;
   /** Accent / highlight */
   accent: string;
+  /** Input box horizontal line color */
+  inputLine: string;
 }
 
 // ── Presets ──────────────────────────────────────────────────────────────────
@@ -54,6 +56,7 @@ export const THEMES: Record<string, Theme> = {
     warning: 'yellow',
     success: 'green',
     accent: 'cyan',
+    inputLine: '#FF8800',
   },
 
   nord: {
@@ -72,6 +75,7 @@ export const THEMES: Record<string, Theme> = {
     warning: '#EBCB8B',
     success: '#A3BE8C',
     accent: '#88C0D0',
+    inputLine: '#D08770',
   },
 
   dracula: {
@@ -90,6 +94,7 @@ export const THEMES: Record<string, Theme> = {
     warning: '#FFB86C',
     success: '#50FA7B',
     accent: '#BD93F9',
+    inputLine: '#FFB86C',
   },
 
   monokai: {
@@ -108,6 +113,7 @@ export const THEMES: Record<string, Theme> = {
     warning: '#FD971F',
     success: '#A6E22E',
     accent: '#AE81FF',
+    inputLine: '#FD971F',
   },
 
   cyberpunk: {
@@ -126,6 +132,7 @@ export const THEMES: Record<string, Theme> = {
     warning: '#FF6600',
     success: '#00FF41',
     accent: '#FF00FF',
+    inputLine: '#FF6600',
   },
 };
 
