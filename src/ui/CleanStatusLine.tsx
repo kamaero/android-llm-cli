@@ -57,9 +57,9 @@ export const CleanStatusLine = memo(function CleanStatusLine({ state }: CleanSta
   };
 
   return (
-    <Box flexDirection="column" paddingX={1}>
+    <Box flexDirection="column" paddingX={1} marginBottom={0} marginTop={0}>
       {/* Line 1: Primary status and model info */}
-      <Box flexDirection="row" columnGap={1}>
+      <Box flexDirection="row" columnGap={1} marginY={0}>
         <Text color={getStatusColor()}>{getStatusIcon()}</Text>
         <Text bold>{session.provider || 'local'}</Text>
         <Text dimColor>•</Text>
@@ -73,7 +73,7 @@ export const CleanStatusLine = memo(function CleanStatusLine({ state }: CleanSta
       </Box>
 
       {/* Line 2: Session metrics */}
-      <Box flexDirection="row" columnGap={1}>
+      <Box flexDirection="row" columnGap={1} marginY={0}>
         <Text dimColor>Session:</Text>
         <Text color={theme.accent}>{analytics.messageCount} msgs</Text>
         <Text dimColor>•</Text>
@@ -92,7 +92,7 @@ export const CleanStatusLine = memo(function CleanStatusLine({ state }: CleanSta
 
       {/* Line 3: Activity and breakdown (only when detailed info is useful) */}
       {(analytics.messageCount > 2 || Object.keys(analytics.toolCallTypes).length > 0) && (
-        <Box flexDirection="row" columnGap={1}>
+        <Box flexDirection="row" columnGap={1} marginY={0}>
           <Text dimColor>Activity:</Text>
           <Text color={theme.user}>👤{analytics.roleCounts.user}</Text>
           <Text color={theme.assistant}>🤖{analytics.roleCounts.assistant}</Text>
@@ -136,7 +136,7 @@ export const CleanStatusLine = memo(function CleanStatusLine({ state }: CleanSta
 
       {/* Error line (only when there's an error) */}
       {status === 'error' && state.error && (
-        <Box flexDirection="row" columnGap={1}>
+        <Box flexDirection="row" columnGap={1} marginY={0}>
           <Text color={theme.error}>Error:</Text>
           <Text color={theme.error}>{state.error}</Text>
         </Box>

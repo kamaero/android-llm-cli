@@ -90,14 +90,12 @@ export const QuickActions = memo(function QuickActions({ messages }: QuickAction
   const menuProps = getMenuProps();
 
   return (
-    <Box>
-      <ContextMenu
-        actions={menuProps.actions}
-        isOpen={globalActions.isMenuOpen}
-        onClose={globalActions.closeMenu}
-        title={menuProps.title}
-      />
-    </Box>
+    <ContextMenu
+      actions={menuProps.actions}
+      isOpen={globalActions.isMenuOpen}
+      onClose={globalActions.closeMenu}
+      title={menuProps.title}
+    />
   );
 });
 

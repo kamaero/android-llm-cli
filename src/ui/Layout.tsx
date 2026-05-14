@@ -17,7 +17,7 @@ interface LayoutProps {
 export function Layout({ state, dispatch, onCommand }: LayoutProps) {
   return (
     <NotificationProvider>
-      <Box flexDirection="column" width="100%">
+      <Box flexDirection="column" width="100%" paddingBottom={0}>
         <MessageList messages={state.session.messages} />
         {state.status === 'awaiting-tool-confirm' && state.pendingToolCall ? (
           <ToolConfirmBox pendingToolCall={state.pendingToolCall} dispatch={dispatch} />
