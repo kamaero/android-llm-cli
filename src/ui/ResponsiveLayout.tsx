@@ -324,7 +324,7 @@ export const ResponsiveInput = memo(function ResponsiveInput({
       width={inputWidth}
     >
       {multiline ? (
-        <Box flexDirection="column" maxHeight={maxHeight}>
+        <Box flexDirection="column" height={maxHeight}>
           {value ? (
             <ResponsiveText maxWidth={inputWidth - 4}>
               {value}

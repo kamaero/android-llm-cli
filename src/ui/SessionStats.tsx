@@ -339,7 +339,7 @@ export const DetailedStats = memo(function DetailedStats({ isOpen, onClose }: De
       {/* Header */}
       <Box flexDirection="row" justifyContent="space-between" marginBottom={1}>
         <Text bold color={theme.accent}>📊 Session Analytics</Text>
-        <Text dimColor onPress={onClose}>ESC: close</Text>
+        <Text dimColor>ESC: close</Text>
       </Box>
 
       {/* Main metrics grid */}

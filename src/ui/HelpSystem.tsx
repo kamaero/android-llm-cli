@@ -667,14 +667,10 @@ export const Tutorial = memo(function Tutorial({ isActive, currentStep, onNext, 
   return (
     <FadeAnimation direction="in" duration={300} enabled={true}>
       <Box
-        position="absolute"
-        top={2}
-        right={2}
         borderStyle="double"
         borderColor={theme.accent}
         paddingX={2}
         paddingY={1}
-        backgroundColor="black"
         flexDirection="column"
         minWidth={40}
       >
@@ -683,7 +679,7 @@ export const Tutorial = memo(function Tutorial({ isActive, currentStep, onNext, 
           <Text bold color={theme.accent}>
             🎓 Tutorial ({currentStep + 1}/{TUTORIAL_STEPS.length})
           </Text>
-          <Text dimColor onPress={onSkip}>ESC: skip</Text>
+          <Text dimColor>ESC: skip</Text>
         </Box>
 
         {/* Step title */}
