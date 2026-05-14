@@ -4,6 +4,7 @@ import { clearCommand } from './clear.js';
 import { helpCommand } from './help.js';
 import { modelCommand } from './model.js';
 import { modeCommand } from './mode.js';
+import { searchCommand } from './search.js';
 import { securityCommand } from './security.js';
 
 export interface CommandContext {
@@ -19,6 +20,7 @@ const COMMANDS: Record<string, CommandHandler> = {
   help: helpCommand,
   model: modelCommand,
   mode: modeCommand,
+  search: searchCommand,
   security: securityCommand,
 };
 
