@@ -1,0 +1,41 @@
+# Source files (only dist/ should be published)
+src/
+*.ts
+!*.d.ts
+
+# Development files
+.env*
+.git*
+tsconfig*.json
+vitest.config.ts
+
+# Development dependencies and tools
+node_modules/
+.vscode/
+.idea/
+
+# Test files
+test/
+tests/
+__tests__/
+*.test.*
+*.spec.*
+
+# Documentation (except README.md)
+docs/
+CONTRIBUTING.md
+
+# Build artifacts (except dist/)
+build/
+coverage/
+*.log
+*.tmp
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Editor files
+*.swp
+*.swo
+*~

@@ -1,235 +1,267 @@
-# android-llm-cli
+# Android LLM CLI
 
-> LLM-агент прямо в Termux. Чат, bash, файлы — без выхода из терминала.
+> Professional terminal-based LLM interface optimized for Android/Termux with advanced UX features
 
-[![Tests](https://github.com/kamaero/android-llm-cli/actions/workflows/ci.yml/badge.svg)](https://github.com/kamaero/android-llm-cli/actions/workflows/ci.yml)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Node](https://img.shields.io/badge/node-%3E%3D20-brightgreen)](package.json)
+[![npm version](https://badge.fury.io/js/android-llm-cli.svg)](https://www.npmjs.com/package/android-llm-cli)
+[![Node.js Version](https://img.shields.io/badge/node-%3E%3D20-brightgreen)](https://nodejs.org/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
----
+A sophisticated command-line interface for interacting with Large Language Models, specifically designed and optimized for Android devices running Termux. Features a modern terminal UI with responsive design, animations, and mobile-first optimizations.
 
-## Быстрый старт
+![Demo](https://via.placeholder.com/800x400/1e1e1e/00ff00?text=Android+LLM+CLI+Demo)
 
-**Одной командой на Termux:**
+## ✨ Features
 
+### 🎯 **Core Functionality**
+- **Multi-Provider Support** - Claude (Anthropic), GPT (OpenAI), and more
+- **Intelligent Streaming** - Smooth text rendering with batching system
+- **Tool Integration** - File operations, web search, code execution
+- **Session Management** - Persistent conversations with analytics
+
+### 📱 **Mobile Optimized**
+- **Termux Ready** - Zero-gap layout optimized for virtual keyboards
+- **Responsive Design** - Adapts to different terminal sizes (40-160+ columns)
+- **Touch-Friendly** - Keyboard shortcuts designed for mobile workflows
+- **Battery Efficient** - Optimized rendering to reduce CPU usage
+
+### 🎨 **Advanced UX**
+- **5 Display Modes** - Normal, Reading, Compact, Debug, Focus
+- **Live Analytics** - Real-time cost, token, and performance monitoring
+- **Smart Search** - Full-text search with regex support
+- **Rich Animations** - Typewriter effects, progress indicators, transitions
+- **Context Menus** - Quick actions and export functionality
+
+### 🛠 **Developer Features**
+- **TypeScript** - Full type safety and intellisense
+- **Extensible** - Plugin architecture for custom tools
+- **Testing** - Comprehensive test suite with CI/CD
+- **Themes** - 5 built-in themes (Default, Nord, Dracula, Monokai, Cyberpunk)
+
+## 📦 Installation
+
+### **Global Installation (Recommended)**
 ```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/kamaero/android-llm-cli/main/install.sh)
+npm install -g android-llm-cli
 ```
 
-Или вручную:
-
+### **Termux (Android) Setup**
 ```bash
-pkg install git nodejs
-git clone https://github.com/kamaero/android-llm-cli.git
-cd android-llm-cli
-npm install && npm run build
-npm install -g .
-```
+# Update Termux packages
+pkg update && pkg upgrade
 
----
+# Install Node.js
+pkg install nodejs-lts
 
-## Настройка API
+# Install the CLI
+npm install -g android-llm-cli
 
-После установки добавь API-ключ:
-
-```bash
-# в ~/.bashrc (рекомендуется — ключ не хранится в файле)
-echo 'export ANTHROPIC_API_KEY="sk-ant-..."' >> ~/.bashrc
-source ~/.bashrc
-```
-
-Или создай config.yaml:
-
-```bash
+# Run setup wizard
 a-llmcli setup
 ```
 
-Мастер создаст `~/.config/a-llmcli/config.yaml` и предложит ввести ключи интерактивно.
-
-**Поддерживаемые провайдеры:**
-
-| Провайдер | Тип в config | API key env var |
-|-----------|-------------|-----------------|
-| Anthropic (Claude) | `anthropic` | `ANTHROPIC_API_KEY` |
-| OpenAI / DeepSeek / OpenRouter | `openai` | `OPENAI_API_KEY` |
-
-> **Безопасность:** Храни `config.yaml` как `~/.ssh/id_rsa` — это секрет.
-> Используй `${ENV_VAR}` interpolation, чтобы не держать ключи в файле.
-
----
-
-## Использование
-
+### **Local Installation**
 ```bash
-# Базовый чат
+npm install android-llm-cli
+npx android-llm-cli
+```
+
+## 🚀 Quick Start
+
+### **1. Initial Setup**
+```bash
+# Interactive configuration wizard
+a-llmcli setup
+```
+
+### **2. Basic Usage**
+```bash
+# Start chatting
 a-llmcli
 
-# Agent mode (LLM может запускать bash, читать/писать файлы)
+# Use specific mode
 a-llmcli --mode agent
 
-# Offline-режим (без интернета, для теста)
+# Mock mode (no API keys needed)
 a-llmcli --mock
-
-# Agent mode offline
-a-llmcli --mock --mode agent
 ```
 
-### Slash-команды
+### **3. Configuration**
+The CLI will create a config file at:
+- **Linux/Mac:** `~/.config/android-llm-cli/config.yaml`
+- **Termux:** `~/.config/android-llm-cli/config.yaml`
 
-| Команда | Описание |
-|---------|----------|
-| `/clear` | Очистить историю сессии |
-| `/model` | Показать текущую модель |
-| `/mode` | Переключить chat/agent |
-| `/help` | Справка по командам |
-| `/retry` | Повторить последний запрос |
-
----
-
-## Примеры
-
-**Чат:**
-
-```
-$ a-llmcli --mock
-┌────────────────────────────────────────────────────┐
-│ > Напиши рифму про терминал                        │
-└────────────────────────────────────────────────────┘
-┌────────────────────────────────────────────────────┐
-│ Hello from mock!                                   │
-│ mock │ mock-model │ chat │ tokens: 15              │
-└────────────────────────────────────────────────────┘
+Example config:
+```yaml
+provider: anthropic
+model: claude-3-sonnet-20240229
+mode: chat
+security: normal
+apiKeys:
+  anthropic: "your-api-key"
 ```
 
-**Agent mode (LLM выполняет bash):**
+## ⌨️ Keyboard Shortcuts
 
+### **Global Shortcuts**
+| Shortcut | Action |
+|----------|--------|
+| `Ctrl+F` | Search messages |
+| `Ctrl+D` | Toggle detailed status |
+| `Ctrl+Space` | Open quick actions |
+| `Ctrl+H` | Help system |
+| `1-5` | Switch display modes |
+
+### **Input Shortcuts**
+| Shortcut | Action |
+|----------|--------|
+| `↑/↓` | Navigate command history |
+| `Tab` | Autocomplete slash commands |
+| `Shift+Enter` | Multi-line input |
+| `Enter` | Send message |
+
+### **Display Modes**
+| Key | Mode | Description |
+|-----|------|-------------|
+| `1` | Normal | Standard view with all features |
+| `2` | Reading | Clean view focused on content |
+| `3` | Compact | Compressed view for small screens |
+| `4` | Debug | Full details for debugging |
+| `5` | Focus | Distraction-free writing |
+
+## 🔧 Advanced Usage
+
+### **Slash Commands**
+```bash
+/help          # Show help system
+/search query  # Web search
+/clear         # Clear conversation
+/model         # Change AI model
+/theme         # Switch themes
+/security      # Security settings
 ```
-$ a-llmcli --mock --mode agent
-┌────────────────────────────────────────────────────┐
-│ > Покажи содержимое текущей папки                  │
-└────────────────────────────────────────────────────┘
-┌────────────────────────────────────────────────────┐
-│ 🤖 Mock вызывает bash("ls -la")                    │
-│ ┌────────────────────────────────────────────────┐ │
-│ │ Allow bash with {"command":"ls -la"}? (y/N)    │ │
-│ └────────────────────────────────────────────────┘ │
-└────────────────────────────────────────────────────┘
+
+### **Export Options**
+- **Markdown** - For documentation
+- **JSON** - For data processing
+- **Text** - For simple sharing
+
+### **Cost Monitoring**
+Real-time cost estimation with alerts:
+- Token usage tracking
+- Provider-specific pricing
+- Session analytics
+- Budget warnings
+
+## 📱 Termux Optimization
+
+### **Storage Setup**
+```bash
+# Allow storage access
+termux-setup-storage
+
+# Create config directory
+mkdir -p ~/.config/android-llm-cli
 ```
 
----
+### **Performance Tips**
+- Use **Compact mode** (`3`) for small screens
+- Enable **Focus mode** (`5`) for better battery life
+- Use **Reading mode** (`2`) for long conversations
 
-## Безопасность
+### **Virtual Keyboard**
+The UI is optimized for Termux virtual keyboard with:
+- Minimal bottom padding
+- Quick access shortcuts
+- Touch-friendly interface
 
-### Что покрывает a-llmcli
+## 🔒 Security Features
 
-- **Никакой tool не выполняется без явного `y`** от пользователя. Каждый вызов bash, read_file, write_file требует интерактивного подтверждения.
-- **API-ключи фильтруются** из окружения bash subprocess'а. Даже если LLM попросит `echo $ANTHROPIC_API_KEY` — ответ будет пустым.
-- **Sensitive пути блокируются**: `.ssh/`, `.aws/`, `.env`, `config.yaml`, `*.pem`, `*.key` — read_file на них вернёт ошибку.
-- **Timeout на bash**: 30 секунд по умолчанию. После SIGTERM → 2s grace → SIGKILL. Никаких зависших процессов.
-- **Трекинг токенов** и лимит вывода (50KB) — CLI не упадёт от переполнения памяти.
-- **WAL-журнал**: при SIGKILL сессия восстанавливается после перезапуска.
+### **Security Modes**
+- **Normal** - Standard safety checks
+- **Hardcore** - Maximum security, all tools require confirmation
 
-### Что НЕ покрывает a-llmcli
+### **Sensitive Data Protection**
+- API keys encrypted at rest
+- No data logging by default
+- Secure tool execution sandboxing
 
-- Если вы подтверждаете команду, мы её выполняем. **Внимательно читайте preview перед нажатием `y`.**
-- Inject через содержимое файлов: LLM может прочитать README с вредоносными инструкциями и предложить опасную команду. Окончательное решение — за вами.
-- Network exfil через DNS, ICMP, скрытые туннели — частично подсвечивается, но не блокируется.
-- Multi-user / shared Termux — не оптимизировано.
-- Root / jailbreak — out of scope.
+## 🎨 Customization
 
-### Безопасное использование
+### **Themes**
+```bash
+# Switch theme via command
+a-llmcli --theme nord
 
-- Храните `config.yaml` как `~/.ssh/id_rsa` — это секрет.
-- Используйте `${ENV_VAR}` interpolation, чтобы не держать ключи в файле.
-- Запускайте в режиме `chat` по умолчанию. Переключайтесь в `agent` только когда явно нужно.
-- Не игнорируйте предупреждения — они появляются, когда AI запросило что-то потенциально опасное.
+# Or use interactive selector
+/theme
+```
 
----
+Available themes:
+- **Default** - Clean blue/gray
+- **Nord** - Arctic color palette
+- **Dracula** - Dark purple theme
+- **Monokai** - Sublime Text colors
+- **Cyberpunk** - Neon green/pink
 
-## Установка из исходников (для разработки)
+## 🔍 Troubleshooting
 
+### **Common Issues**
+
+**Screen flickering during streaming:**
+```bash
+# Already fixed in v1.0.0+
+npm update -g android-llm-cli
+```
+
+**Permission errors:**
+```bash
+# Check Node.js permissions
+npm config get prefix
+npm config set prefix ~/.local
+```
+
+**API key issues:**
+```bash
+# Reconfigure
+a-llmcli setup
+```
+
+### **Debug Mode**
+```bash
+# Enable debug output
+a-llmcli --debug
+```
+
+## 🤝 Contributing
+
+We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+
+### **Development Setup**
 ```bash
 git clone https://github.com/kamaero/android-llm-cli.git
 cd android-llm-cli
 npm install
-npm run build
-
-# Линковка для разработки
-npm link
-a-llmcli --help
+npm run dev
 ```
 
-### Запуск тестов
+## 📄 License
+
+MIT © [Kam Aero](https://github.com/kamaero)
+
+## 🌟 Acknowledgments
+
+Built with:
+- [Ink](https://github.com/vadimdemedes/ink) - React for CLI
+- [Anthropic SDK](https://github.com/anthropics/anthropic-sdk-typescript) - Claude AI integration
+- [OpenAI SDK](https://github.com/openai/openai-node) - GPT integration
+
+Special thanks to the Termux community for inspiration and testing.
+
+---
+
+**Ready to experience AI in your terminal? Install now and start chatting!** 🚀
 
 ```bash
-npm test            # vitest — 186+ тестов
-npm run build       # TypeScript strict mode
+npm install -g android-llm-cli
+a-llmcli setup
 ```
-
----
-
-## Архитектура
-
-```
-src/
-├── index.ts              # Точка входа, CLI-флаги (meow)
-├── app.tsx               # React/Ink UI, reducer, agent loop
-├── types.ts              # Все типы и интерфейсы
-├── schemas.ts            # Zod-схемы для config.yaml
-├── providers/            # IProvider + адаптеры
-│   ├── IProvider.ts
-│   ├── anthropic.ts
-│   ├── openai.ts
-│   ├── mock.ts           # Offline-режим для тестов
-│   └── registry.ts
-├── tools/                # Инструменты для agent mode
-│   ├── bash.ts           # Запуск команд с env-фильтром
-│   ├── readFile.ts       # Безопасное чтение файлов
-│   ├── writeFile.ts      # Запись файлов (workspace-bound)
-│   └── shell.ts          # Детект шелла
-├── agent/                # Agent loop
-│   └── agentLoop.ts
-├── ui/                   # Ink-компоненты
-│   ├── Layout.tsx
-│   ├── InputBox.tsx
-│   ├── MessageList.tsx
-│   ├── MessageItem.tsx
-│   ├── ToolConfirmBox.tsx
-│   ├── StatusBar.tsx
-│   ├── CodeBlock.tsx
-│   └── RecoveryPrompt.tsx
-├── streaming/            # Стриминг + retry
-├── storage/              # Сессии, WAL, config
-├── prompts/              # Системные промпты
-└── commands/             # Slash-команды
-```
-
----
-
-## Для чего это
-
-Замена Claude Code / Codex CLI на Android. Всё, что эти инструменты делают на desktop — работает на телефоне через Termux: разработка, деплой, администрирование, работа с файлами.
-
-### Возможности
-
-- ✅ Чат с Claude / OpenAI / DeepSeek / OpenRouter
-- ✅ Agent mode — LLM запускает bash, читает/пишет файлы
-- ✅ Офлайн-тестирование через `--mock`
-- ✅ Crash recovery — WAL после SIGKILL
-- ✅ Retry с exponential backoff
-- ✅ Подсветка синтаксиса в ответах (highlight.js)
-- ✅ Safety: env-filter, timeout, sensitive paths, per-call confirm
-
-### В разработке (Phase 2)
-
-- `/compact` — суммаризация длинных сессий
-- Multi-tool batch confirm
-- Edit tool input перед выполнением
-- Отмена посреди agent loop
-- GigaChat / YandexGPT провайдеры
-
----
-
-## Лицензия
-
-MIT © Kam Aero

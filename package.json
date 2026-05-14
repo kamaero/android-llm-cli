@@ -1,18 +1,51 @@
 {
   "name": "android-llm-cli",
-  "version": "0.1.0",
-  "private": true,
+  "version": "1.0.0",
+  "description": "Professional terminal-based LLM interface optimized for Android/Termux with advanced UX features",
   "type": "module",
   "bin": {
-    "a-llmcli": "./dist/src/index.js"
+    "a-llmcli": "./dist/src/index.js",
+    "android-llm-cli": "./dist/src/index.js"
   },
+  "main": "./dist/src/index.js",
   "engines": {
     "node": ">=20"
   },
   "scripts": {
     "dev": "tsc -w -p tsconfig.build.json",
     "build": "tsc -p tsconfig.build.json",
-    "test": "vitest run"
+    "test": "vitest run",
+    "prepublishOnly": "npm run build",
+    "start": "node ./dist/src/index.js"
+  },
+  "files": [
+    "dist/",
+    "README.md",
+    "LICENSE"
+  ],
+  "keywords": [
+    "llm",
+    "ai",
+    "cli",
+    "terminal",
+    "android",
+    "termux",
+    "claude",
+    "openai",
+    "anthropic",
+    "chat",
+    "assistant",
+    "mobile"
+  ],
+  "author": "Kam Aero <aerokamero@gmail.com>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/kamaero/android-llm-cli.git"
+  },
+  "homepage": "https://github.com/kamaero/android-llm-cli",
+  "bugs": {
+    "url": "https://github.com/kamaero/android-llm-cli/issues"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.95.2",
