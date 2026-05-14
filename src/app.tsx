@@ -13,7 +13,7 @@ import type {
   ToolCall,
   ToolResult,
 } from './types.js';
-import { agentLoop, createReasoningBatcher, executeToolCall } from './agent/agentLoop.js';
+import { agentLoop, createReasoningBatcher, createTextBatcher, executeToolCall } from './agent/agentLoop.js';
 import type { ConfigType } from './schemas.js';
 import { createProvider } from './providers/registry.js';
 import { buildPromptContext } from './prompts/buildPromptContext.js';
@@ -535,11 +535,13 @@ export function App({ config, deps }: AppProps) {
         let streamAttempt = 0;
         let shouldPause = false;
         const reasoningBatcher = createReasoningBatcher(dispatch);
+        const textBatcher = createTextBatcher(dispatch);
 
         await withRetry(
           async () => {
             if (streamAttempt > 0) {
               reasoningBatcher.cancel();
+              textBatcher.cancel();
               dispatch({ type: 'RESUME_STREAMING' });
             }
             streamAttempt += 1;
@@ -549,14 +551,19 @@ export function App({ config, deps }: AppProps) {
 
               switch (chunk.type) {
                 case 'text':
+                  // Flush any pending reasoning before text starts (thinking → response transition)
                   reasoningBatcher.flush();
-                  dispatch({ type: 'APPEND_TEXT', delta: chunk.delta });
+                  textBatcher.add(chunk.delta);
                   break;
                 case 'reasoning':
+                  // Flush any pending text before reasoning starts (response → thinking transition)
+                  textBatcher.flush();
                   reasoningBatcher.add(chunk.delta);
                   break;
                 case 'tool_call':
+                  // Flush all pending batches before tool call
                   reasoningBatcher.flush();
+                  textBatcher.flush();
                   dispatch({
                     type: 'SET_TOOL_CALL',
                     toolCall: {
@@ -575,7 +582,9 @@ export function App({ config, deps }: AppProps) {
                   });
                   break;
                 case 'done':
+                  // Flush all remaining content
                   reasoningBatcher.flush();
+                  textBatcher.flush();
                   break;
               }
 

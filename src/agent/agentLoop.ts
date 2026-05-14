@@ -15,6 +15,54 @@ import { DEFAULT_RETRY_OPTS, withRetry } from '../streaming/retry.js';
 import { needsConfirm } from '../security/needsConfirm.js';
 
 /**
+ * Throttled batcher for text chunks.
+ * Collects text deltas and dispatches a single APPEND_TEXT
+ * at most once per `intervalMs`. This prevents render flickering from
+ * high-frequency tiny text chunks during streaming.
+ */
+export function createTextBatcher(
+  dispatch: (action: AppAction) => AppState,
+  intervalMs = 16, // ~60fps for smoother text updates
+) {
+  let buffer = '';
+  let timer: ReturnType<typeof setTimeout> | null = null;
+
+  function flush() {
+    if (buffer) {
+      dispatch({ type: 'APPEND_TEXT', delta: buffer });
+      buffer = '';
+    }
+    timer = null;
+  }
+
+  return {
+    add(delta: string) {
+      buffer += delta;
+      if (intervalMs === 0) {
+        // Synchronous mode for tests
+        flush();
+      } else if (!timer) {
+        timer = setTimeout(flush, intervalMs);
+      }
+    },
+    flush() {
+      if (timer) {
+        clearTimeout(timer);
+        timer = null;
+      }
+      flush();
+    },
+    cancel() {
+      if (timer) {
+        clearTimeout(timer);
+        timer = null;
+      }
+      buffer = '';
+    },
+  };
+}
+
+/**
  * Throttled batcher for reasoning chunks.
  * Collects reasoning deltas and dispatches a single APPEND_REASONING
  * at most once per `intervalMs`. This prevents render flickering from
@@ -38,7 +86,10 @@ export function createReasoningBatcher(
   return {
     add(delta: string) {
       buffer += delta;
-      if (!timer) {
+      if (intervalMs === 0) {
+        // Synchronous mode for tests
+        flush();
+      } else if (!timer) {
         timer = setTimeout(flush, intervalMs);
       }
     },
@@ -71,6 +122,10 @@ export interface AgentLoopParams {
   signal: AbortSignal;
   /** How many tool executions have already occurred this session (for 'always' resume). */
   iteration?: number;
+  /** Text batching interval in ms, 0 for synchronous (tests) */
+  textBatchMs?: number;
+  /** Reasoning batching interval in ms, 0 for synchronous (tests) */
+  reasoningBatchMs?: number;
 }
 
 function normalizeToolInput(input: unknown): Record<string, unknown> {
@@ -129,6 +184,8 @@ export async function agentLoop(params: AgentLoopParams): Promise<void> {
 
   let session = params.session;
   let iteration = params.iteration ?? 0;
+  const textBatchMs = params.textBatchMs ?? 16;
+  const reasoningBatchMs = params.reasoningBatchMs ?? 60;
 
   while (iteration < AGENT_LOOP_MAX_ITERATIONS_MVP) {
     const tools = provider.capabilities.tools ? toolRegistry.list() : undefined;
@@ -139,14 +196,16 @@ export async function agentLoop(params: AgentLoopParams): Promise<void> {
 
     try {
       let streamAttempt = 0;
-      const reasoningBatcher = createReasoningBatcher(dispatch);
+      const reasoningBatcher = createReasoningBatcher(dispatch, reasoningBatchMs);
+      const textBatcher = createTextBatcher(dispatch, textBatchMs);
 
       await withRetry(
         async () => {
           if (streamAttempt > 0) {
-            // Reset tool call state on retry — cancel stale reasoning buffer too
+            // Reset tool call state on retry — cancel stale batchers too
             toolCall = null;
             reasoningBatcher.cancel();
+            textBatcher.cancel();
             dispatch({ type: 'RESUME_STREAMING' });
           }
           streamAttempt += 1;
@@ -160,13 +219,17 @@ export async function agentLoop(params: AgentLoopParams): Promise<void> {
               case 'text':
                 // Flush any pending reasoning before text starts (thinking → response transition)
                 reasoningBatcher.flush();
-                dispatch({ type: 'APPEND_TEXT', delta: chunk.delta });
+                textBatcher.add(chunk.delta);
                 break;
               case 'reasoning':
+                // Flush any pending text before reasoning starts (response → thinking transition)
+                textBatcher.flush();
                 reasoningBatcher.add(chunk.delta);
                 break;
               case 'tool_call':
+                // Flush all pending batches before tool call
                 reasoningBatcher.flush();
+                textBatcher.flush();
                 toolCall = {
                   id: chunk.id,
                   name: chunk.name,
@@ -182,7 +245,9 @@ export async function agentLoop(params: AgentLoopParams): Promise<void> {
                 });
                 break;
               case 'done':
+                // Flush all remaining content
                 reasoningBatcher.flush();
+                textBatcher.flush();
                 break;
             }
 

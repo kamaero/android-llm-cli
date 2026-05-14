@@ -63,7 +63,7 @@ function InlineText({ line }: { line: string }) {
 
 // ── Block-level markdown renderer ────────────────────────────────────────────
 
-function MarkdownContent({ content }: { content: string }) {
+function MarkdownContentInner({ content }: { content: string }) {
   const theme = useTheme();
   const lines = content.split('\n');
   const blocks: React.ReactNode[] = [];
@@ -117,6 +117,14 @@ function MarkdownContent({ content }: { content: string }) {
 
   return <Box flexDirection="column">{blocks}</Box>;
 }
+
+/**
+ * Memoized markdown content — only re-renders when content actually changes.
+ * This prevents expensive markdown parsing on every message update.
+ */
+const MarkdownContent = React.memo(MarkdownContentInner, (prevProps, nextProps) => {
+  return prevProps.content === nextProps.content;
+});
 
 // ── MessageItem ───────────────────────────────────────────────────────────────
 

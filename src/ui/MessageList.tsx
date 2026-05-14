@@ -38,8 +38,27 @@ function MessageListInner({ messages }: MessageListProps) {
 }
 
 /**
- * Memoised message list — only re-renders when the messages array reference changes
- * (streaming creates a new array, so this WILL re-render, but individual MessageItems
- * inside are memoised and skip unless their content changed).
+ * Optimized memoization: only re-render if the visible messages actually changed.
+ * This prevents unnecessary re-renders when messages array reference changes but
+ * visible content is identical (e.g., hidden message count changes).
  */
-export const MessageList = React.memo(MessageListInner);
+export const MessageList = React.memo(MessageListInner, (prevProps, nextProps) => {
+  const prevMessages = prevProps.messages;
+  const nextMessages = nextProps.messages;
+
+  // Quick reference check first
+  if (prevMessages === nextMessages) return true;
+
+  // Check if visible messages are the same
+  const prevVisible = prevMessages.slice(-MAX_VISIBLE);
+  const nextVisible = nextMessages.slice(-MAX_VISIBLE);
+
+  if (prevVisible.length !== nextVisible.length) return false;
+
+  // Compare each visible message by reference (messages are immutable)
+  for (let i = 0; i < prevVisible.length; i++) {
+    if (prevVisible[i] !== nextVisible[i]) return false;
+  }
+
+  return true;
+});

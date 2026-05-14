@@ -81,6 +81,27 @@ function makeInitialState(session: Session): AppState {
   return { session, status: 'idle', pendingToolCall: undefined };
 }
 
+function makeBaseAgentLoopParams(session: Session, provider: IProvider, overrides: Partial<Parameters<typeof agentLoop>[0]> = {}) {
+  const { dispatch, actions } = makeDispatch(makeInitialState(session));
+  return {
+    params: {
+      session,
+      provider,
+      toolRegistry: new ToolRegistry(),
+      systemPrompt: 'You are a test assistant.',
+      dispatch,
+      security: { mode: 'normal' as const, workspaceRoot: '/tmp' },
+      saveSession: vi.fn(),
+      appendWalEntry: vi.fn(),
+      signal: new AbortController().signal,
+      textBatchMs: 0, // Synchronous for tests
+      reasoningBatchMs: 0, // Synchronous for tests
+      ...overrides,
+    },
+    actions,
+  };
+}
+
 /**
  * Minimal dispatch that applies just enough action cases for agentLoop to work.
  * Tracks all dispatched actions for assertion in tests.
@@ -219,87 +240,63 @@ function makeDispatch(initial: AppState): {
 describe('agentLoop', () => {
   it('streams text and stops cleanly', async () => {
     const session = makeSession();
-    const { dispatch, actions } = makeDispatch(makeInitialState(session));
-    const saveSession = vi.fn();
-
-    await agentLoop({
-      session,
-      provider: makeProvider(
-        makeChunks(
-          { type: 'text', delta: 'Hello' },
-          { type: 'text', delta: ' world' },
-          { type: 'done' },
-        ),
+    const provider = makeProvider(
+      makeChunks(
+        { type: 'text', delta: 'Hello' },
+        { type: 'text', delta: ' world' },
+        { type: 'done' },
       ),
-      toolRegistry: new ToolRegistry(),
-      systemPrompt: 'You are a test assistant.',
-      dispatch,
-      sessionPolicy: makePolicy(),
-      saveSession,
-      signal: new AbortController().signal,
-    });
+    );
+    const { params, actions } = makeBaseAgentLoopParams(session, provider);
+
+    await agentLoop(params);
 
     expect(actions.map((a) => a.type)).toContain('START_STREAMING');
     expect(actions.map((a) => a.type)).toContain('APPEND_TEXT');
     expect(actions.map((a) => a.type)).toContain('STOP_STREAMING');
-    expect(saveSession).toHaveBeenCalledOnce();
+    expect(params.saveSession).toHaveBeenCalledOnce();
   });
 
   it('dispatches SET_USAGE when usage chunk arrives', async () => {
     const session = makeSession();
-    const { dispatch, actions } = makeDispatch(makeInitialState(session));
+    const provider = makeProvider(
+      makeChunks({ type: 'usage', inputTokens: 10, outputTokens: 5 }, { type: 'done' }),
+    );
+    const { params, actions } = makeBaseAgentLoopParams(session, provider);
 
-    await agentLoop({
-      session,
-      provider: makeProvider(
-        makeChunks({ type: 'usage', inputTokens: 10, outputTokens: 5 }, { type: 'done' }),
-      ),
-      toolRegistry: new ToolRegistry(),
-      systemPrompt: '',
-      dispatch,
-      sessionPolicy: makePolicy(),
-      saveSession: vi.fn(),
-      signal: new AbortController().signal,
-    });
+    await agentLoop(params);
 
     const usageAction = actions.find((a) => a.type === 'SET_USAGE');
     expect(usageAction).toBeDefined();
     expect(usageAction).toMatchObject({ type: 'SET_USAGE', inputTokens: 10, outputTokens: 5 });
   });
 
-  it("dispatches SET_TOOL_CALL and returns without executing in 'always' mode", async () => {
+  it("dispatches SET_TOOL_CALL and returns for risky commands in 'normal' mode", async () => {
     const tool = makeTool('bash', 'output');
     const registry = new ToolRegistry([tool]);
     const session = makeSession();
-    const { dispatch, actions } = makeDispatch(makeInitialState(session));
-    const saveSession = vi.fn();
-
-    await agentLoop({
-      session,
-      provider: makeProvider(
-        makeChunks({ type: 'tool_call', id: 'tc1', name: 'bash', input: { command: 'ls' } }),
-      ),
+    const provider = makeProvider(
+      makeChunks({ type: 'tool_call', id: 'tc1', name: 'bash', input: { command: 'rm -rf /' } }),
+    );
+    const { params, actions } = makeBaseAgentLoopParams(session, provider, {
       toolRegistry: registry,
-      systemPrompt: '',
-      dispatch,
-      sessionPolicy: makePolicy({ bashConfirmation: 'always' }),
-      saveSession,
-      signal: new AbortController().signal,
+      security: { mode: 'normal', workspaceRoot: '/tmp' },
     });
+
+    await agentLoop(params);
 
     // SET_TOOL_CALL dispatched but STOP_STREAMING is NOT — loop paused for user
     expect(actions.map((a) => a.type)).toContain('SET_TOOL_CALL');
     expect(actions.map((a) => a.type)).not.toContain('STOP_STREAMING');
-    expect(saveSession).not.toHaveBeenCalled();
+    expect(params.saveSession).not.toHaveBeenCalled();
     // Tool was NOT executed
     expect(tool.execute).not.toHaveBeenCalled();
   });
 
-  it("auto-executes tool and loops in 'never' mode", async () => {
+  it("auto-executes tool and loops in 'hardcore' mode", async () => {
     const tool = makeTool('bash', 'hello from bash');
     const registry = new ToolRegistry([tool]);
     const session = makeSession();
-    const { dispatch, actions } = makeDispatch(makeInitialState(session));
 
     // First call: tool_call; second call (after tool result): done
     const provider: IProvider = {
@@ -314,25 +311,19 @@ describe('agentLoop', () => {
         .mockReturnValueOnce(makeChunks({ type: 'text', delta: 'done!' }, { type: 'done' })),
     };
 
-    const saveSession = vi.fn();
-
-    await agentLoop({
-      session,
-      provider,
+    const { params, actions } = makeBaseAgentLoopParams(session, provider, {
       toolRegistry: registry,
-      systemPrompt: '',
-      dispatch,
-      sessionPolicy: makePolicy({ bashConfirmation: 'never' }),
-      saveSession,
-      signal: new AbortController().signal,
+      security: { mode: 'hardcore', workspaceRoot: '/tmp' },
     });
+
+    await agentLoop(params);
 
     expect(tool.execute).toHaveBeenCalledOnce();
     expect(actions.map((a) => a.type)).toContain('SET_TOOL_CALL');
     expect(actions.map((a) => a.type)).toContain('SET_TOOL_RESULT');
     expect(actions.map((a) => a.type)).toContain('STOP_STREAMING');
     expect(provider.stream).toHaveBeenCalledTimes(2);
-    expect(saveSession).toHaveBeenCalledOnce();
+    expect(params.saveSession).toHaveBeenCalledOnce();
 
     const toolResultAction = actions.find((a) => a.type === 'SET_TOOL_RESULT');
     expect(toolResultAction).toMatchObject({
@@ -367,7 +358,7 @@ describe('agentLoop', () => {
       toolRegistry: registry,
       systemPrompt: '',
       dispatch,
-      sessionPolicy: makePolicy({ bashConfirmation: 'never' }),
+      security: { mode: "hardcore", workspaceRoot: "/tmp" }, appendWalEntry: vi.fn(), textBatchMs: 0, reasoningBatchMs: 0,
       saveSession: vi.fn(),
       signal: new AbortController().signal,
     });
@@ -400,7 +391,7 @@ describe('agentLoop', () => {
       toolRegistry: registry,
       systemPrompt: '',
       dispatch,
-      sessionPolicy: makePolicy({ bashConfirmation: 'never' }),
+      security: { mode: "hardcore", workspaceRoot: "/tmp" }, appendWalEntry: vi.fn(), textBatchMs: 0, reasoningBatchMs: 0,
       saveSession: vi.fn(),
       signal: new AbortController().signal,
     });
@@ -414,28 +405,22 @@ describe('agentLoop', () => {
 
   it('dispatches SET_ERROR when the stream throws', async () => {
     const session = makeSession();
-    const { dispatch, actions } = makeDispatch(makeInitialState(session));
 
     async function* failingStream(): AsyncIterable<StreamChunk> {
       yield { type: 'text', delta: 'partial' };
       throw new Error('network error');
     }
 
-    await agentLoop({
-      session,
-      provider: {
-        name: 'test',
-        model: 'test-model',
-        capabilities: { streaming: true, tools: true, vision: false, systemPrompt: 'parameter' },
-        stream: vi.fn(() => failingStream()),
-      },
-      toolRegistry: new ToolRegistry(),
-      systemPrompt: '',
-      dispatch,
-      sessionPolicy: makePolicy(),
-      saveSession: vi.fn(),
-      signal: new AbortController().signal,
-    });
+    const provider: IProvider = {
+      name: 'test',
+      model: 'test-model',
+      capabilities: { streaming: true, tools: true, vision: false, systemPrompt: 'parameter' },
+      stream: vi.fn(() => failingStream()),
+    };
+
+    const { params, actions } = makeBaseAgentLoopParams(session, provider);
+
+    await agentLoop(params);
 
     expect(actions.filter((a) => a.type === 'SET_RETRY')).toHaveLength(2);
     const errAction = actions.find((a) => a.type === 'SET_ERROR');
@@ -445,7 +430,6 @@ describe('agentLoop', () => {
   it('aborts mid-stream without dispatching STOP_STREAMING', async () => {
     const controller = new AbortController();
     const session = makeSession();
-    const { dispatch, actions } = makeDispatch(makeInitialState(session));
 
     async function* slowStream(): AsyncIterable<StreamChunk> {
       yield { type: 'text', delta: 'chunk1' };
@@ -454,16 +438,11 @@ describe('agentLoop', () => {
       yield { type: 'done' };
     }
 
-    await agentLoop({
-      session,
-      provider: makeProvider(slowStream()),
-      toolRegistry: new ToolRegistry(),
-      systemPrompt: '',
-      dispatch,
-      sessionPolicy: makePolicy(),
-      saveSession: vi.fn(),
+    const { params, actions } = makeBaseAgentLoopParams(session, makeProvider(slowStream()), {
       signal: controller.signal,
     });
+
+    await agentLoop(params);
 
     // After abort, the for-await breaks before processing 'done', but the
     // !toolCall branch still dispatches STOP_STREAMING to reset UI state.
