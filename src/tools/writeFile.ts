@@ -4,6 +4,7 @@ import { Buffer } from 'node:buffer';
 
 import { ARTIFACT_MAX_BYTES } from '../constants.js';
 import type { ITool, ToolContext } from '../types.js';
+import { isSensitivePath } from '../security/needsConfirm.js';
 
 function formatResult(exitCode: number, content: string): string {
   return `exit code: ${exitCode}\nstdout:\n${content}`;
@@ -51,7 +52,7 @@ export class WriteFileTool implements ITool {
 
   readonly name = 'write_file';
 
-  readonly description = 'Write a UTF-8 text file inside the workspace, creating parent directories and overwriting existing files.';
+  readonly description = 'Write a UTF-8 text file inside the workspace, creating parent directories and overwriting existing files. Sensitive paths (config, credentials, .env, .ssh, .aws) are blocked.';
 
   get schema(): Record<string, unknown> {
     return WriteFileTool.schema;
@@ -72,6 +73,12 @@ export class WriteFileTool implements ITool {
       }
 
       const resolvedPath = resolveWritePath(inputPath, ctx.workspaceRoot);
+
+      // Block writes to sensitive paths
+      if (isSensitivePath(resolvedPath)) {
+        return formatResult(1, `Writing to sensitive path is not allowed: ${inputPath}`);
+      }
+
       await mkdir(path.dirname(resolvedPath), { recursive: true });
       await writeFile(resolvedPath, content, 'utf8');
 

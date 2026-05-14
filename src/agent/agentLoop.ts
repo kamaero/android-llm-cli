@@ -19,7 +19,7 @@ import { needsConfirm } from '../security/needsConfirm.js';
  * at most once per `intervalMs`. This prevents render flickering from
  * high-frequency tiny reasoning chunks (DeepSeek thinking).
  */
-function createReasoningBatcher(
+export function createReasoningBatcher(
   dispatch: (action: AppAction) => AppState,
   intervalMs = 60,
 ) {
@@ -142,8 +142,9 @@ export async function agentLoop(params: AgentLoopParams): Promise<void> {
       await withRetry(
         async () => {
           if (streamAttempt > 0) {
-            // Reset tool call state on retry
+            // Reset tool call state on retry — cancel stale reasoning buffer too
             toolCall = null;
+            reasoningBatcher.cancel();
             dispatch({ type: 'RESUME_STREAMING' });
           }
           streamAttempt += 1;

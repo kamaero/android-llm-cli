@@ -13,7 +13,7 @@ import type {
   ToolCall,
   ToolResult,
 } from './types.js';
-import { agentLoop, executeToolCall } from './agent/agentLoop.js';
+import { agentLoop, createReasoningBatcher, executeToolCall } from './agent/agentLoop.js';
 import type { ConfigType } from './schemas.js';
 import { createProvider } from './providers/registry.js';
 import { buildPromptContext } from './prompts/buildPromptContext.js';
@@ -175,6 +175,7 @@ function resetStreamingAssistantMessage(messages: Message[]): Message[] {
   nextMessages[nextMessages.length - 1] = {
     ...lastMessage,
     content: '',
+    reasoningContent: undefined,
     tool_calls: undefined,
     tokens: undefined,
     timestamp: Date.now(),
@@ -529,17 +530,51 @@ export function App({ config, deps }: AppProps) {
       try {
         let streamAttempt = 0;
         let shouldPause = false;
+        const reasoningBatcher = createReasoningBatcher(dispatch);
 
         await withRetry(
           async () => {
             if (streamAttempt > 0) {
+              reasoningBatcher.cancel();
               dispatch({ type: 'RESUME_STREAMING' });
             }
             streamAttempt += 1;
 
             for await (const chunk of provider.stream(session.messages, { systemPrompt, tools })) {
               runtimeDeps.appendWalEntry(session.id, chunk);
-              shouldPause = handleStreamChunk(chunk, dispatch);
+
+              switch (chunk.type) {
+                case 'text':
+                  reasoningBatcher.flush();
+                  dispatch({ type: 'APPEND_TEXT', delta: chunk.delta });
+                  break;
+                case 'reasoning':
+                  reasoningBatcher.add(chunk.delta);
+                  break;
+                case 'tool_call':
+                  reasoningBatcher.flush();
+                  dispatch({
+                    type: 'SET_TOOL_CALL',
+                    toolCall: {
+                      id: chunk.id,
+                      name: chunk.name,
+                      input: normalizeToolInput(chunk.input),
+                    },
+                  });
+                  shouldPause = true;
+                  break;
+                case 'usage':
+                  dispatch({
+                    type: 'SET_USAGE',
+                    inputTokens: chunk.inputTokens,
+                    outputTokens: chunk.outputTokens,
+                  });
+                  break;
+                case 'done':
+                  reasoningBatcher.flush();
+                  break;
+              }
+
               if (shouldPause) {
                 return;
               }
@@ -707,41 +742,6 @@ export function App({ config, deps }: AppProps) {
   }
 
   return <Layout state={state} dispatch={boundDispatch} onCommand={handleCommand} />;
-}
-
-function handleStreamChunk(
-  chunk: StreamChunk,
-  dispatch: (action: AppAction) => AppState,
-): boolean {
-  switch (chunk.type) {
-    case 'text':
-      dispatch({ type: 'APPEND_TEXT', delta: chunk.delta });
-      return false;
-    case 'reasoning':
-      dispatch({ type: 'APPEND_REASONING', delta: chunk.delta });
-      return false;
-    case 'tool_call':
-      dispatch({
-        type: 'SET_TOOL_CALL',
-        toolCall: {
-          id: chunk.id,
-          name: chunk.name,
-          input: normalizeToolInput(chunk.input),
-        },
-      });
-      return true;
-    case 'usage':
-      dispatch({
-        type: 'SET_USAGE',
-        inputTokens: chunk.inputTokens,
-        outputTokens: chunk.outputTokens,
-      });
-      return false;
-    case 'done':
-      return false;
-    default:
-      return false;
-  }
 }
 
 function normalizeToolInput(input: unknown): Record<string, unknown> {

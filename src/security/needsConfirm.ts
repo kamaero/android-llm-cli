@@ -1,6 +1,58 @@
 import type { ToolCall, SecurityConfig } from '../types.js';
 
 /**
+ * Sensitive path patterns reused across bash, read_file, and write_file checks.
+ * Keep in sync with src/tools/readFile.ts
+ */
+export const SENSITIVE_PATH_PATTERNS = [
+  /[/\\]\\.ssh[/\\]/,
+  /[/\\]\\.env(\\.\\w+)?$/,
+  /[/\\]\\.config[/\\]a-llmcli[/\\]/,
+  /[/\\]\\.aws[/\\]/,
+  /[/\\]\\.gitconfig$/,
+  /[/\\]\\.netrc$/,
+  /[/\\]config\\.yaml$/,
+  /\\.pem$/,
+  /\\.key$/,
+];
+
+/** Check if a path matches any sensitive pattern */
+export function isSensitivePath(path: string): boolean {
+  for (const pattern of SENSITIVE_PATH_PATTERNS) {
+    if (pattern.test(path)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Heuristic: does a bash command reference sensitive files or paths?
+ * Looks for file paths as arguments to read/write ops (cat, echo >, etc.)
+ * that hit sensitive patterns.
+ */
+export function bashRefsSensitivePath(command: string): boolean {
+  const sensitiveIndicators = [
+    /[/\\]\\.ssh[/\\]/,
+    /[/\\]\\.env(\\.\\w+)?(\s|$|['"])/,
+    /[/\\]\\.config[/\\]a-llmcli[/\\]/,
+    /[/\\]\\.aws[/\\]/,
+    /\\.pem(\s|$|['"])/,
+    /\\.key(\s|$|['"])/,
+    /\/\.gitconfig(\s|$|['"])/,
+    /\/\.netrc(\s|$|['"])/,
+    /config\.yaml(\s|$|['"])/,
+  ];
+
+  for (const pattern of sensitiveIndicators) {
+    if (pattern.test(command)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
  * Determine if a tool call needs user confirmation based on security mode.
  *
  * Normal mode: Smart auto-approval for safe operations, confirmation for risky ones
@@ -43,6 +95,17 @@ export function needsConfirm(toolCall: ToolCall, security: SecurityConfig): bool
 
 function needsBashConfirm(command: string, workspaceRoot: string): boolean {
   if (!command) return false;
+
+  // --- Sensitive path check (runs BEFORE safe-command auto-approval) ---
+  // If the command reads or writes sensitive files, it ALWAYS needs confirmation.
+  if (bashRefsSensitivePath(command)) {
+    return true;
+  }
+
+  // Write redirection (>, >>) always needs confirmation — changes files
+  if (/>>?\s/.test(command)) {
+    return true;
+  }
 
   // Auto-run safe commands
   const safeCommands = [
@@ -94,34 +157,29 @@ function needsBashConfirm(command: string, workspaceRoot: string): boolean {
 }
 
 function needsWriteFileConfirm(path: string, workspaceRoot: string): boolean {
-  // Auto-run writes inside workspace (but show compact diff in UI)
-  // This function determines if confirmation dialog is shown
-  // The compact diff is handled separately in the UI
-  if (path.startsWith('/') && !path.startsWith(workspaceRoot)) {
-    return true; // Outside workspace - needs confirmation
+  // --- Sensitive path check ---
+  if (isSensitivePath(path)) {
+    return true;
   }
 
-  return false; // Inside workspace - auto-run with diff display
+  // Outside workspace — needs confirmation
+  if (path.startsWith('/') && !path.startsWith(workspaceRoot)) {
+    return true;
+  }
+
+  return false; // Inside workspace, non-sensitive — auto-run with diff display
 }
 
 function needsReadFileConfirm(path: string, workspaceRoot: string): boolean {
+  // --- Sensitive path check ---
+  if (isSensitivePath(path)) {
+    return true;
+  }
+
   // Auto-run reads inside workspace
   if (!path.startsWith('/') || path.startsWith(workspaceRoot)) {
-    // Check for sensitive patterns
-    const sensitivePatterns = [
-      /[/\\]\.ssh[/\\]/,
-      /[/\\]\.env(\.\w+)?$/,
-      /[/\\]\.config[/\\]a-llmcli[/\\]/,
-    ];
-
-    for (const pattern of sensitivePatterns) {
-      if (pattern.test(path)) {
-        return true; // Sensitive file - needs confirmation
-      }
-    }
-
     return false; // Auto-run
   }
 
-  return true; // Outside workspace - needs confirmation
+  return true; // Outside workspace — needs confirmation
 }
