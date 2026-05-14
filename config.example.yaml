@@ -25,6 +25,13 @@ security:
   #              Confirmation required for risky operations (rm, install, curl, etc.)
   # Hardcore mode: Full auto-execution without confirmations (risky!)
 
+# ---- Tools ----
+tools:
+  web_search:
+    api_key: ${BRAVE_SEARCH_API_KEY}
+    # Get a free API key at https://api.search.brave.com/app
+    # 2000 free queries/month, no credit card required
+
 # ---- Providers ----
 providers:
   anthropic:

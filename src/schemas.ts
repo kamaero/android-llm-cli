@@ -68,6 +68,11 @@ export const ConfigSchema = z.object({
   environment: RuntimeEnvironmentSchema.default({ type: 'termux', include_builtin_context: true }),
   security: SecuritySchema.default({ mode: 'normal', workspace_root: '$HOME/projects' }),
   providers: z.record(z.string(), ProviderConfigSchema),
+  tools: z.object({
+    web_search: z.object({
+      api_key: z.string().optional(),
+    }).optional(),
+  }).optional(),
 });
 
 export type ConfigType = z.infer<typeof ConfigSchema>;

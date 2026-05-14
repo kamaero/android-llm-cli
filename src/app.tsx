@@ -27,7 +27,7 @@ import {
   type WalScanEntry,
 } from './storage/session.js';
 import { ToolRegistry } from './tools/registry.js';
-import { BashTool, ReadFileTool, WriteFileTool } from './tools/index.js';
+import { BashTool, ReadFileTool, WebFetchTool, WebSearchTool, WriteFileTool } from './tools/index.js';
 import { Layout } from './ui/Layout.js';
 import { RecoveryPrompt } from './ui/RecoveryPrompt.js';
 import { executeCommand, type CommandContext } from './commands/index.js';
@@ -449,6 +449,8 @@ export function App({ config, deps }: AppProps) {
     new BashTool(),
     new ReadFileTool(),
     new WriteFileTool(),
+    new WebFetchTool(),
+    new WebSearchTool(config.tools?.web_search?.api_key ?? ''),
   ]));
   const abortControllerRef = useRef(new AbortController());
   const iterationRef = useRef(0);
