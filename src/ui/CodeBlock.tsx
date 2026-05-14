@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Box, Text } from 'ink';
+import { Box, Text, useInput } from 'ink';
 import { useTheme } from '../theme.js';
+import { useClipboard, useToast } from './NotificationToast.js';
 
 export interface CodeBlockProps {
   code: string;
@@ -63,6 +64,16 @@ function splitIntoLines(tokens: Token[]): Token[][] {
 export function CodeBlock({ code, lang }: CodeBlockProps) {
   const theme = useTheme();
   const [lines, setLines] = useState<Token[][] | null>(null);
+  const [isFocused, setIsFocused] = useState(false);
+  const { copyToClipboard } = useClipboard();
+  const toast = useToast();
+
+  // Handle Ctrl+C to copy code
+  useInput((input, key) => {
+    if (key.ctrl && input === 'c' && isFocused) {
+      copyToClipboard(code, `${lang || 'Code'} block`);
+    }
+  });
 
   useEffect(() => {
     let cancelled = false;
@@ -104,8 +115,19 @@ export function CodeBlock({ code, lang }: CodeBlockProps) {
   const plainLines = code.split('\n');
 
   return (
-    <Box borderStyle="single" borderColor={theme.code} flexDirection="column" paddingX={1}>
-      {lang ? <Text bold color={theme.accent}>{lang}</Text> : null}
+    <Box
+      borderStyle="single"
+      borderColor={theme.code}
+      flexDirection="column"
+      paddingX={1}
+    >
+      {/* Header with language and copy hint */}
+      <Box flexDirection="row" justifyContent="space-between">
+        {lang ? <Text bold color={theme.accent}>{lang}</Text> : <Box />}
+        <Text dimColor>📋 copyable</Text>
+      </Box>
+
+      {/* Code content */}
       {lines === null
         ? plainLines.map((line, i) => (
             <Text key={i} color={theme.accent}>{line}</Text>

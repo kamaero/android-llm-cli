@@ -2,6 +2,7 @@ import React from 'react';
 import { Box, Text } from 'ink';
 import type { AppState } from '../types.js';
 import { useTheme } from '../theme.js';
+import { StreamingProgressIndicator, RetryProgressIndicator } from './ProgressIndicator.js';
 
 interface StatusBarProps {
   state: AppState;
@@ -37,13 +38,16 @@ function StatusBarInner({ state }: StatusBarProps) {
       {isStreaming && (
         <>
           <Text dimColor> │ </Text>
-          <Text color={theme.warning}>streaming…</Text>
+          <StreamingProgressIndicator />
         </>
       )}
       {isRetrying && retryState && (
         <>
           <Text dimColor> │ </Text>
-          <Text color={theme.warning}>retrying ({retryState.attempt}/{retryState.maxAttempts})…</Text>
+          <RetryProgressIndicator
+            attempt={retryState.attempt}
+            maxAttempts={retryState.maxAttempts}
+          />
         </>
       )}
       {isError && state.error && (
