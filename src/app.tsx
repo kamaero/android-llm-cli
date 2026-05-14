@@ -515,6 +515,7 @@ export function App({ config, deps }: AppProps) {
           dispatch,
           security,
           saveSession: runtimeDeps.saveSession,
+          appendWalEntry: runtimeDeps.appendWalEntry,
           signal: abortControllerRef.current.signal,
           iteration,
         });

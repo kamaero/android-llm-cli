@@ -17,7 +17,17 @@ const ENV_WHITELIST = new Set([
   'USER',
   'SHELL',
 ]);
-const ENV_BLACKLIST_PATTERN = /^.*_(API_KEY|KEY|TOKEN|SECRET|PASSWORD|PASSWD|PAT)$/i;
+
+/**
+ * Expanded secret env-var detection.
+ *
+ * Stage 1 — classic underscore-suffixed:  OPENAI_API_KEY, GITHUB_TOKEN, NPM_TOKEN, etc.
+ * Stage 2 — bare suffixes anywhere in name:  MYKEY, SECRET2, PASSWORD, TOKEN123
+ * Stage 3 — common prefixes:  SECRET_, PWD_, KEY_
+ *
+ * Still allows common non-secret names like TIMEOUT, TIMESTAMP, PREFIX.
+ */
+const ENV_BLACKLIST_PATTERN = /(?:^.*_(API_KEY|KEY|TOKEN|SECRET|PASSWORD|PASSWD|PAT)$|(?:KEY|TOKEN|SECRET|PASSWORD|PASSWD|PAT)[0-9]*$|^SECRET_|^PWD_|^KEY_)/i;
 const DEFAULT_TIMEOUT_MS = 30_000;
 const MAX_TIMEOUT_MS = 300_000;
 const TIMEOUT_KILL_GRACE_MS = 2_000;

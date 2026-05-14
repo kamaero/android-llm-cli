@@ -5,6 +5,7 @@ import type {
   IProvider,
   Session,
   SecurityConfig,
+  StreamChunk,
   ToolCall,
   ToolContext,
   ToolResult,
@@ -66,6 +67,7 @@ export interface AgentLoopParams {
   dispatch: (action: AppAction) => AppState;
   security: SecurityConfig;
   saveSession: (session: Session) => void;
+  appendWalEntry: (sessionId: string, chunk: StreamChunk) => void;
   signal: AbortSignal;
   /** How many tool executions have already occurred this session (for 'always' resume). */
   iteration?: number;
@@ -122,7 +124,7 @@ export async function executeToolCall(
  * internally up to AGENT_LOOP_MAX_ITERATIONS_MVP times.
  */
 export async function agentLoop(params: AgentLoopParams): Promise<void> {
-  const { provider, toolRegistry, systemPrompt, dispatch, security, saveSession, signal } =
+  const { provider, toolRegistry, systemPrompt, dispatch, security, saveSession, appendWalEntry, signal } =
     params;
 
   let session = params.session;
@@ -151,6 +153,8 @@ export async function agentLoop(params: AgentLoopParams): Promise<void> {
 
           for await (const chunk of provider.stream(session.messages, { systemPrompt, tools, signal })) {
             if (signal.aborted) break;
+
+            appendWalEntry(session.id, chunk);
 
             switch (chunk.type) {
               case 'text':
